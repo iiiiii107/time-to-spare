@@ -1,0 +1,213 @@
+/* Design tokens.
+
+   Light is the complete palette on bare :root. Dark redefines only the token
+   values, in both the prefers-color-scheme block (guarded so an explicit light
+   choice still wins) and the [data-theme="dark"] block (so the toggle wins
+   too). Never declare a colour anywhere but here.
+
+   Each view has its own page tint *and* its own paper stock, in both themes.
+   Dark isn't a navy wash: it's the same set of coloured papers, just deep
+   instead of pale, so the app stays as lively with the lights off. */
+
+:root {
+  --page:        #EFE9D8;
+  --grid:        rgba(48, 46, 40, .055);
+  --grid-strong: rgba(48, 46, 40, .10);
+  --paper:       #FBF7EB;
+  --paper-line:  rgba(47, 92, 150, .16);
+  --margin-rule: #B8714C;
+  --ink-blue:    #2F5C96;
+  --ink-blue-dk: #21426D;
+  --ink-deep:    #20395C;
+  --butter:      #EFD87B;
+  --butter-deep: #D9B54A;
+  --ink:         #302E28;
+  --muted:       #7C7565;
+  --hair:        rgba(48, 46, 40, .10);
+  --hair-strong: rgba(48, 46, 40, .20);
+  --sage:        #7E9A70;
+  --rust:        #B8714C;
+  --plum:        #8A6A93;
+  --band:        #E4DBBF;
+  --accent:      #B8714C;
+
+  /* per-view page tints */
+  --bg-today:      #EFE9D8;
+  --bg-lists:      #DCE6D6;
+  --bg-calendar:   #D9E2EF;
+  --bg-randomizer: #F1E5BE;
+  --bg-timer:      #EEDCCD;
+  --bg-quiet:      #DED0E8;
+
+  /* per-view paper stocks — barely tinted in the light theme */
+  --paper-today:      #FBF7EB;
+  --paper-lists:      #F8FAF4;
+  --paper-calendar:   #F8FAFD;
+  --paper-randomizer: #FDFAEF;
+  --paper-timer:      #FDF7F2;
+  --paper-quiet:      #FAF5FD;
+
+  --shadow-1: rgba(48, 46, 40, .06);
+  --shadow-2: rgba(48, 46, 40, .28);
+  --btn-face: #2F5C96;
+  --btn-edge: #1C3A61;
+  --btn-text: #FBF7EB;
+
+  /* the colours a task can be assigned */
+  --task-1: #2F5C96; /* ink blue */
+  --task-2: #7E9A70; /* sage */
+  --task-3: #B8714C; /* rust */
+  --task-4: #D9B54A; /* deep butter */
+  --task-5: #20395C; /* ink */
+  --task-6: #EFD87B; /* butter */
+
+  /* marks the pen pot can leave */
+  --graphite: #6B6660;
+  --marker:   #C4483C;
+
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Dark, as lamplight on a desk rather than a colour scheme inverted.
+
+       Three things the old one got wrong. The grounds were saturated, so they
+       fought the text sitting on them. The boards were pure black, which
+       against a saturated ground vibrates at the edges and is tiring to read.
+       And the accents were the light palette unchanged, so they glared.
+
+       Now: grounds are deep and nearly neutral, with only a whisper of each
+       view's hue, so the views still differ without shouting. Boards sit one
+       step *lighter* than their ground, which is how a surface reads as
+       raised when there is no light to cast a shadow. Ink is warm off-white
+       rather than pure white, and the accents are lightened and drained of
+       some colour so they glow instead of glaring. */
+
+    --page:        #14161C;
+    --grid:        rgba(233, 227, 213, .04);
+    --grid-strong: rgba(233, 227, 213, .075);
+    --paper:       #1E212B;
+    --paper-line:  rgba(143, 182, 242, .15);
+    --margin-rule: #E8916B;
+    --ink-blue:    #8FB6F2;
+    --ink-blue-dk: #6E97D8;
+    --ink-deep:    #F7F2E6;
+    --butter:      #F0CE6B;
+    --butter-deep: #D4AF4C;
+    --ink:         #E9E3D5;
+    --muted:       #9C9483;
+    --hair:        rgba(233, 227, 213, .11);
+    --hair-strong: rgba(233, 227, 213, .22);
+    --sage:        #93C88C;
+    --rust:        #E8916B;
+    --plum:        #C59BD6;
+    --band:        #1B1D26;
+    --accent:      #E8916B;
+
+    /* deep and nearly neutral — each view keeps its hue as a whisper */
+    --bg-today:      #121724;
+    --bg-lists:      #111A15;
+    --bg-calendar:   #131826;
+    --bg-randomizer: #1A1322;
+    --bg-timer:      #1D1512;
+    --bg-quiet:      #1A1026;
+
+    /* boards, one step lighter than the ground they sit on */
+    --paper-today:      #1B2436;
+    --paper-lists:      #182620;
+    --paper-calendar:   #1B2436;
+    --paper-randomizer: #261C31;
+    --paper-timer:      #2A1E19;
+    --paper-quiet:      #261A38;
+
+    --shadow-1: rgba(0, 0, 0, .40);
+    --shadow-2: rgba(0, 0, 0, .65);
+    --btn-face: #4E80CC;
+    --btn-edge: #2F5590;
+    --btn-text: #F7F2E6;
+
+    --task-1: #8FB6F2;
+    --task-2: #93C88C;
+    --task-3: #E8916B;
+    --task-4: #F0CE6B;
+    --task-5: #B9C7E8;
+    --task-6: #F5E2A0;
+
+    --graphite: #B8B2A6;
+    --marker:   #F0705E;
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Dark, as lamplight on a desk rather than a colour scheme inverted.
+
+     Three things the old one got wrong. The grounds were saturated, so they
+     fought the text sitting on them. The boards were pure black, which
+     against a saturated ground vibrates at the edges and is tiring to read.
+     And the accents were the light palette unchanged, so they glared.
+
+     Now: grounds are deep and nearly neutral, with only a whisper of each
+     view's hue, so the views still differ without shouting. Boards sit one
+     step *lighter* than their ground, which is how a surface reads as
+     raised when there is no light to cast a shadow. Ink is warm off-white
+     rather than pure white, and the accents are lightened and drained of
+     some colour so they glow instead of glaring. */
+
+  --page:        #14161C;
+  --grid:        rgba(233, 227, 213, .04);
+  --grid-strong: rgba(233, 227, 213, .075);
+  --paper:       #1E212B;
+  --paper-line:  rgba(143, 182, 242, .15);
+  --margin-rule: #E8916B;
+  --ink-blue:    #8FB6F2;
+  --ink-blue-dk: #6E97D8;
+  --ink-deep:    #F7F2E6;
+  --butter:      #F0CE6B;
+  --butter-deep: #D4AF4C;
+  --ink:         #E9E3D5;
+  --muted:       #9C9483;
+  --hair:        rgba(233, 227, 213, .11);
+  --hair-strong: rgba(233, 227, 213, .22);
+  --sage:        #93C88C;
+  --rust:        #E8916B;
+  --plum:        #C59BD6;
+  --band:        #1B1D26;
+  --accent:      #E8916B;
+
+  /* deep and nearly neutral — each view keeps its hue as a whisper */
+  --bg-today:      #121724;
+  --bg-lists:      #111A15;
+  --bg-calendar:   #131826;
+  --bg-randomizer: #1A1322;
+  --bg-timer:      #1D1512;
+  --bg-quiet:      #1A1026;
+
+  /* boards, one step lighter than the ground they sit on */
+  --paper-today:      #1B2436;
+  --paper-lists:      #182620;
+  --paper-calendar:   #1B2436;
+  --paper-randomizer: #261C31;
+  --paper-timer:      #2A1E19;
+  --paper-quiet:      #261A38;
+
+  --shadow-1: rgba(0, 0, 0, .40);
+  --shadow-2: rgba(0, 0, 0, .65);
+  --btn-face: #4E80CC;
+  --btn-edge: #2F5590;
+  --btn-text: #F7F2E6;
+
+  --task-1: #8FB6F2;
+  --task-2: #93C88C;
+  --task-3: #E8916B;
+  --task-4: #F0CE6B;
+  --task-5: #B9C7E8;
+  --task-6: #F5E2A0;
+
+  --graphite: #B8B2A6;
+  --marker:   #F0705E;
+}

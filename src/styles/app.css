@@ -1,0 +1,1036 @@
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.55;
+  background-color: var(--page);
+  background-attachment: fixed;
+  transition: background-color .5s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  color: var(--ink-deep);
+  margin: 0;
+  text-wrap: balance;
+  font-weight: 600;
+}
+p { margin: 0; }
+img, svg { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--ink-blue); outline-offset: 3px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Text scales from one token, so the size control in Settings doesn't need
+   every rule to know about it. */
+html { font-size: calc(100% * var(--text-scale, 1)); }
+
+/* ---------- per-view paper stock ----------
+   Each view has its own ground, and the pattern printed on it is yours to
+   choose in Settings. The four views share one paper and one accent so that
+   changing zoom never reads as arriving somewhere else. */
+
+body { --paper: var(--paper-today); background-color: var(--bg-today); }
+body[data-view="month"]    { background-color: var(--bg-lists); }
+body[data-view="agenda"]   { background-color: var(--bg-quiet); }
+body[data-view="settings"] { background-color: var(--bg-quiet); }
+
+body[data-paper="ruled"] {
+  background-image: linear-gradient(var(--grid-strong) 1px, transparent 1px);
+  background-size: 100% 34px;
+}
+body[data-paper="grid"] {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(var(--grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px);
+  background-size: 22px 22px, 22px 22px, 110px 110px, 110px 110px;
+}
+body[data-paper="dots"] {
+  background-image: radial-gradient(circle, var(--grid-strong) 1.4px, transparent 1.5px);
+  background-size: 30px 30px;
+}
+body[data-paper="plain"] { background-image: none; }
+
+body { --accent: var(--rust); }
+body[data-view="month"]  { --accent: var(--sage); }
+body[data-view="agenda"] { --accent: var(--ink-blue); }
+.marquee {
+  background: var(--band);
+  border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+  overflow: hidden; white-space: nowrap; padding: 7px 0;
+  margin: 12px 0;
+}
+.marquee-track { display: inline-block; animation: slide 38s linear infinite; }
+.marquee span {
+  font-family: var(--font-display); font-style: italic; font-weight: 600;
+  font-size: 13px; color: var(--ink-deep); padding: 0 22px;
+}
+.marquee i { color: var(--rust); font-style: normal; }
+@keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }/* ---------- paper surface ---------- */
+
+.paper {
+  position: relative;
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px var(--shadow-1), 0 10px 26px -14px var(--shadow-2);
+  isolation: isolate;
+}
+.paper::before {
+  content: "";
+  position: absolute; inset: 0; border-radius: inherit;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: .05; mix-blend-mode: multiply; pointer-events: none; z-index: 0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paper::before { mix-blend-mode: screen; opacity: .04; }
+}
+:root[data-theme="dark"] .paper::before {
+  mix-blend-mode: screen; opacity: .04;
+}
+.paper > * { position: relative; z-index: 1; }
+
+/* ---------- layout ---------- */
+
+/* Bottom padding clears the fixed bottom bar on phones. */
+.app { max-width: 940px; margin: 0 auto; padding: 0 14px calc(92px + env(safe-area-inset-bottom)); }
+@media (min-width: 720px) { .app { padding-bottom: 40px; } }
+
+/* ---------- masthead ----------
+   A centred wordmark on a pinstriped panel, with small pills underneath
+   carrying the date and the day's progress. */
+
+.masthead { padding: 10px 14px 0; }
+
+.masthead-panel {
+  position: relative;
+  max-width: 940px; margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 1px 2px var(--shadow-1), 0 10px 26px -16px var(--shadow-2);
+}
+
+/* Vertical pinstripes, kept faint so the wordmark stays the loudest thing. */
+.stripes {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink-blue) 8%, transparent) 0 11px,
+    transparent 11px 24px
+  );
+}
+
+.masthead-inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
+  /* Side padding keeps the wordmark clear of the clock button in the corner.
+
+     The height is pinned so tapping the clock can't jolt the page. It has to
+     clear the tallest either state ever gets, which is the wordmark wrapped
+     onto two lines on a narrow phone — the clock only ever runs to one. The
+     clock's own type is matched to the wordmark's below, so on any width wide
+     enough for one line the two states measure the same anyway. */
+  padding: 16px 56px 14px;
+  min-height: 120px; justify-content: center;
+  text-align: center;
+}
+@media (min-width: 720px) { .masthead-inner { padding: 18px 56px 16px; } }
+.masthead-inner .wordmark { text-wrap: balance; }
+
+/* ---------- clock ----------
+   A button in the corner of the panel. Tapping it swaps the wordmark for the
+   date and time; tapping again brings the wordmark back. */
+
+/* Two drawn things pinned in the corner of the page: the clock, which swaps
+   the wordmark for the time, and the calendar under it, which opens Google
+   Calendar where the timed tasks are written. */
+.clock-btn, .cal-link {
+  position: absolute; right: 12px; z-index: 3;
+  width: 44px; height: 44px; padding: 7px;
+  border: none; border-radius: 12px; cursor: pointer;
+  background: transparent;
+  display: block;
+  transition: background .18s, transform .18s;
+}
+.clock-btn { top: 12px; }
+.cal-link { top: 58px; }
+
+.clock-btn:hover, .cal-link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.clock-btn:active, .cal-link:active { transform: scale(.92); }
+.clock-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.clock-btn svg, .cal-link svg { width: 100%; height: 100%; }
+
+.clock-face { font-variant-numeric: tabular-nums; }
+.clock-face .clock-time {
+  font-family: var(--font-display); font-weight: 600;
+  /* Matched to .wordmark so both states measure the same. */
+  font-size: clamp(30px, 7vw, 52px); line-height: 1;
+  color: var(--ink-blue); letter-spacing: -1px;
+}
+.clock-face .clock-date {
+  font-family: var(--font-display); font-style: italic; font-weight: 500;
+  /* Matched to .wordmark-sub, for the same reason. */
+  font-size: clamp(13px, 2.4vw, 15px); color: var(--accent); margin-top: 6px;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 7vw, 52px);
+  font-weight: 600; color: var(--ink-blue);
+  letter-spacing: -1px; line-height: 1;
+}
+/* "to spare" carries the italic and its own colour — the two-tone split the
+   reference wordmarks use. */
+.wordmark em {
+  font-style: italic; font-weight: 500;
+  color: var(--accent);
+  transition: color .4s ease;
+}
+.wordmark-sub {
+  font-family: var(--font-display); font-style: italic; font-weight: 500;
+  font-size: clamp(13px, 2.4vw, 15px); color: var(--muted);
+}
+
+.marquee {
+  background: var(--band);
+  border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+  overflow: hidden; white-space: nowrap; padding: 7px 0;
+  margin: 12px 0;
+}
+.marquee-track { display: inline-block; animation: slide 38s linear infinite; }
+.marquee span {
+  font-family: var(--font-display); font-style: italic; font-weight: 600;
+  font-size: 13px; color: var(--ink-deep); padding: 0 22px;
+}
+.marquee i { color: var(--rust); font-style: normal; }
+@keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ---------- section nav ----------
+   Three sections. On a phone this is a fixed bar along the bottom, within
+   thumb reach; from tablet up it sits inline above the content. */
+
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 8px;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--hair-strong);
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 20px -14px var(--shadow-2);
+}
+/* Every tab is one equal grid column, and each carries a filled cell whether
+   or not it's current — so making one active never shifts the rhythm. */
+.nav-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 9px 4px; min-width: 0;
+  border-radius: 10px; font-size: 11px;
+}
+.nav-icon { font-size: 17px; line-height: 1; }
+
+@media (min-width: 720px) {
+  .nav {
+    position: static; max-width: 940px; margin: 0 auto 14px;
+    grid-auto-columns: 1fr;
+    padding: 0 14px;
+    background: none; backdrop-filter: none; border-top: none; box-shadow: none;
+  }
+  .nav-tab { flex-direction: row; gap: 8px; font-size: 13px; padding: 11px 18px; }
+  .nav-icon { font-size: 15px; }
+}
+
+/* ---------- pressable controls ----------
+   One depth system for everything clickable: a 3px solid edge in the
+   control's own colour, one ambient shadow, one top highlight, and the same
+   3px travel when pressed. Variants change colour, never depth. */
+
+.btn, .seg-item, .nav-tab, .preset, .cal-mode {
+  --edge: var(--hair-strong);
+  --face: color-mix(in srgb, var(--paper) 86%, transparent);
+  --face-text: var(--muted);
+
+  position: relative; top: 0;
+  border: none; cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--face) 92%, white), var(--face));
+  color: var(--face-text);
+  box-shadow:
+    0 3px 0 var(--edge),
+    0 6px 12px -6px var(--shadow-2),
+    inset 0 1px 0 rgb(255 255 255 / .4);
+  transition: top .08s ease, box-shadow .08s ease, background .18s, color .18s;
+}
+
+.btn:active, .seg-item:active, .nav-tab:active, .preset:active, .cal-mode:active {
+  top: 3px;
+  box-shadow: 0 0 0 var(--edge), 0 2px 5px -3px var(--shadow-2);
+}
+
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Variants: colour only. */
+.btn-primary,
+.seg-item[aria-selected="true"],
+.nav-tab[aria-current="page"],
+.preset[aria-pressed="true"],
+.cal-mode[aria-pressed="true"] {
+  --face: var(--btn-face);
+  --edge: var(--btn-edge);
+  --face-text: var(--btn-text);
+}
+.btn-secondary { --face: var(--paper); --face-text: var(--ink-blue); }
+.btn-ghost { --face: var(--butter); --edge: var(--butter-deep); --face-text: #20395C; }
+
+/* Main buttons wear the display face — the same one "to spare" is set in. */
+.btn {
+  font-family: var(--font-display);
+  font-style: italic; font-weight: 600;
+  font-size: 15px; letter-spacing: .01em;
+  border-radius: 9px; padding: 10px 22px;
+}
+.btn-sm { padding: 7px 16px; font-size: 13.5px; border-radius: 8px; }
+
+.btn:hover, .seg-item:hover, .nav-tab:hover, .preset:hover, .cal-mode:hover {
+  color: var(--face-text);
+}
+.seg-item:not([aria-selected="true"]):hover,
+.nav-tab:not([aria-current="page"]):hover { color: var(--ink); }
+
+/* ---------- segmented control ----------
+   Used for day/week/month, the Other sections, frequency, and settings, so
+   every "pick one of these" reads the same way. */
+.seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.seg-wide { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
+.seg-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg-item {
+  display: flex; align-items: center; justify-content: center;
+  padding: 9px 10px; border-radius: 8px;
+  font-size: 12.5px; min-width: 0; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seg-wrap .seg-item { flex: 1 1 44px; }
+.seg-custom { font-style: italic; letter-spacing: .04em; }
+.seg-input {
+  flex: 1 1 62px; width: 62px; text-align: center;
+  border: 1.5px solid var(--ink-blue); background: var(--paper);
+  color: var(--ink); font-weight: 700; box-shadow: none;
+}
+.seg-input:focus { outline: none; }
+
+/* The Other section's tabs sit directly on top of its panel, sharing its
+   rounded top corners — so they read as tabs of that panel rather than a
+   second navigation bar competing with the one at the bottom. */
+.section-tabs {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 4px; margin-bottom: -14px; padding: 0 6px;
+  position: relative; z-index: 2;
+}
+.section-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 3px; min-width: 0;
+  padding: 9px 4px 18px;
+  border-radius: 12px 12px 0 0;
+  text-decoration: none; text-align: center;
+  font-weight: 700; font-size: 10.5px; line-height: 1.15;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  transition: background .18s, color .18s;
+}
+.section-tab span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.section-tab:hover { color: var(--ink); }
+.section-tab[aria-selected="true"] {
+  color: var(--ink-deep);
+  background: var(--paper);
+}
+.section-tab .tab-icon { font-size: 16px; line-height: 1; }
+@media (min-width: 480px) {
+  .section-tab { font-size: 12px; padding: 11px 8px 20px; }
+  .section-tab .tab-icon { font-size: 18px; }
+}
+
+.icon-btn {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--muted); padding: 6px; border-radius: 7px; line-height: 0;
+}
+.icon-btn:hover { background: var(--hair); color: var(--ink); }
+
+/* ---------- forms ---------- */
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field > label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.input, .select, .textarea {
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  border: 1.5px solid var(--hair-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 14px; font-weight: 600; width: 100%;
+}
+.textarea { resize: vertical; min-height: 90px; line-height: 1.7; }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--ink-blue); outline: none; }
+
+.swatch-picker, .emoji-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch-opt {
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  border: 2px solid transparent; padding: 0;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.swatch-opt[aria-pressed="true"] { border-color: var(--ink); transform: scale(1.08); }
+.emoji-opt {
+  width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--hair); background: transparent; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.emoji-opt[aria-pressed="true"] { border-color: var(--ink-blue); background: var(--hair); }
+
+/* ---------- cards / sections ---------- */
+
+.card { padding: 16px; }
+.card + .card { margin-top: 14px; }
+.section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.section-head h2 { font-size: 22px; }
+.section-head .sub { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+
+.empty {
+  text-align: center; padding: 26px 16px;
+  font-family: var(--font-display); font-style: italic; font-size: 17px; color: var(--muted);
+}
+.empty .hint { font-family: var(--font-body); font-style: normal; font-size: 13px; margin-top: 10px; }
+
+/* Category cards read as a pad of coloured notes: the tint comes from the
+   list's own colour, and the pattern is the paper stock it's written on. */
+.note {
+  background: color-mix(in srgb, var(--note-tint) 16%, var(--paper));
+  box-shadow: 0 1px 2px var(--shadow-1), 0 12px 28px -14px var(--shadow-2);
+  --note-line: color-mix(in srgb, var(--note-tint) 40%, transparent);
+}
+.note-ruled {
+  background-image: repeating-linear-gradient(
+    transparent 0 27px, var(--note-line) 27px 28px);
+  background-position: 0 12px;
+}
+.note-grid {
+  background-image:
+    repeating-linear-gradient(transparent 0 21px, var(--note-line) 21px 22px),
+    repeating-linear-gradient(90deg, transparent 0 21px, var(--note-line) 21px 22px);
+}
+.note-dots {
+  background-image: radial-gradient(var(--note-line) 1.4px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+.note-graph {
+  background-image:
+    repeating-linear-gradient(transparent 0 11px, var(--note-line) 11px 12px),
+    repeating-linear-gradient(90deg, transparent 0 11px, var(--note-line) 11px 12px);
+  background-size: 12px 12px, 12px 12px;
+}
+/* Patterned notes keep their tint underneath the pattern. */
+.note-ruled, .note-grid, .note-dots, .note-graph {
+  background-color: color-mix(in srgb, var(--note-tint) 14%, var(--paper));
+}
+.note .freq-badge { background: color-mix(in srgb, var(--paper) 55%, transparent); }
+
+.cat-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cat-mark {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.cat-title { font-size: 19px; flex: 1; min-width: 0; }
+
+/* ---------- pen pot ----------
+   A line-art cup with the tools standing in it. Every tool is placed at an
+   exact slot rather than flowing, so the arrangement can't collapse at any
+   width; the cup is painted over their feet so they sit inside it. */
+
+.pot-shell { display: flex; justify-content: center; }
+.pot-stage { position: relative; width: 156px; height: 160px; }
+.pot { position: absolute; inset: 0; }
+
+.pot-tool {
+  /* Low enough that their feet pass behind the near rim — at the middle of
+     the cup the rim dips to ~46px, so 40px puts them inside it, not above. */
+  position: absolute; bottom: 40px;
+  width: 32px; height: 70px;
+  border: none; background: none; padding: 0;
+  cursor: grab; touch-action: none;
+  transition: transform .2s cubic-bezier(.3, 1.5, .5, 1);
+}
+.pot-tool svg { width: 100%; height: 100%; display: block; }
+.pot-tool:hover { transform: translateY(-8px); }
+.pot-tool:active, .pot-tool.lifted { cursor: grabbing; transform: translateY(-14px); }
+
+/* Fixed slots, each leaning a little differently so it looks packed by hand. */
+.pot-tool[data-slot="0"] { left: 12px;  transform: rotate(-7deg); }
+.pot-tool[data-slot="1"] { left: 44px;  transform: rotate(-2deg); }
+.pot-tool[data-slot="2"] { left: 76px;  transform: rotate(3deg); }
+.pot-tool[data-slot="3"] { left: 108px; transform: rotate(8deg); }
+.pot-tool[data-slot="0"]:hover { transform: rotate(-7deg) translateY(-8px); }
+.pot-tool[data-slot="1"]:hover { transform: rotate(-2deg) translateY(-8px); }
+.pot-tool[data-slot="2"]:hover { transform: rotate(3deg) translateY(-8px); }
+.pot-tool[data-slot="3"]:hover { transform: rotate(8deg) translateY(-8px); }
+
+/* Hovering a tool says what it does. "Highlighter" on its own doesn't tell
+   you it deliberately leaves the task undone, which is the thing worth
+   knowing about it. */
+.pot-tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: 186px; padding: 9px 11px;
+  border-radius: 10px; background: var(--ink); color: var(--paper);
+  box-shadow: 0 6px 18px -6px var(--shadow-2);
+  font-size: 11.5px; line-height: 1.4; text-align: left;
+  display: flex; flex-direction: column; gap: 3px;
+  opacity: 0; visibility: hidden; pointer-events: none; z-index: 20;
+  transition: opacity .16s, transform .16s, visibility .16s;
+}
+.pot-tip b { font-size: 12px; letter-spacing: .01em; }
+.pot-tip i { font-style: italic; opacity: .78; }
+.pot-tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--ink);
+}
+.pot-tool:hover .pot-tip,
+.pot-tool:focus-visible .pot-tip {
+  opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+/* The two nearest each edge would otherwise hang off the pot. */
+.pot-stage .pot-tool[data-slot="0"] .pot-tip { left: 0; transform: translateX(-14%) translateY(4px); }
+.pot-stage .pot-tool[data-slot="0"]:hover .pot-tip { transform: translateX(-14%) translateY(0); }
+.pot-stage .pot-tool[data-slot="3"] .pot-tip { left: auto; right: 0; transform: translateX(14%) translateY(4px); }
+.pot-stage .pot-tool[data-slot="3"]:hover .pot-tip { transform: translateX(14%) translateY(0); }
+
+.pot-tool-adjustable { cursor: grab; }
+
+/* ---------- the pen that fetches the pot ---------- */
+
+.pot-toggle {
+  width: 30px; height: 30px; padding: 4px;
+  border: none; border-radius: 9px; cursor: pointer;
+  background: transparent; color: var(--muted);
+  transition: background .16s, color .16s, transform .16s;
+}
+.pot-toggle svg { width: 100%; height: 100%; }
+.pot-toggle:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.pot-toggle:active { transform: scale(.9); }
+.pot-toggle[aria-pressed="true"] {
+  background: var(--butter); color: var(--ink);
+  box-shadow: 0 2px 0 var(--butter-deep);
+}
+
+.title-row { align-items: center; gap: 8px; }
+
+/* ---------- setting a tool up ---------- */
+
+.tool-preview {
+  width: 100%; height: 44px; margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.ink-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ink-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ink-swatch {
+  width: 26px; height: 26px; padding: 0; cursor: pointer;
+  border-radius: 50%; border: 2px solid var(--hair-strong);
+  background: var(--ink-swatch);
+  transition: transform .14s, border-color .14s;
+}
+.ink-swatch:hover { transform: scale(1.12); }
+.ink-swatch[aria-pressed="true"] {
+  border-color: var(--ink); transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--ink-blue); }
+
+.pot-cup {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 72px; z-index: 2; pointer-events: none;
+  filter: drop-shadow(0 6px 10px var(--shadow-2));
+}
+
+/* the phone version: a flat row of the same four */
+.pot-compact {
+  position: static; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+.pot-compact .pot-tool {
+  position: static; width: auto; height: auto; transform: none;
+  padding: 4px 10px 4px 6px; border-radius: 8px;
+  display: flex; flex-direction: row; gap: 5px; align-items: center;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  box-shadow: 0 2px 0 var(--hair-strong);
+}
+.pot-compact .pot-tool:hover,
+.pot-compact .pot-tool.lifted { transform: none; }
+.pot-compact .pot-tool svg { width: 13px; height: 26px; }
+/* In the flat row there's no room for a floating tooltip and no hover to
+   trigger it, so the name sits inline and the full description stays on the
+   button's label for screen readers. */
+.pot-compact .pot-tip {
+  position: static; width: auto; padding: 0;
+  background: none; box-shadow: none; color: var(--muted);
+  opacity: 1; visibility: visible; transform: none;
+  flex-direction: row; font-size: 9.5px; font-weight: 700;
+}
+.pot-compact .pot-tip::after { display: none; }
+.pot-compact .pot-tip span,
+.pot-compact .pot-tip i { display: none; }
+
+/* The tools always come out as a flat row here. The grid wants the whole
+   width, so there is nowhere to stand a cup beside it — and the row is
+   therefore how they are reached at every width, with no breakpoint that
+   could leave a gap with neither. */
+.pot-compact { display: flex; }
+
+/* Hovering still explains each tool, so the row keeps the full tooltip
+   rather than the name-only treatment the tracker's phone row uses. */
+@media (hover: hover) and (min-width: 720px) {
+  .pot-compact .pot-tip {
+    position: absolute; bottom: calc(100% + 10px); left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    width: 186px; padding: 9px 11px; border-radius: 10px;
+    background: var(--ink); color: var(--paper); box-shadow: 0 6px 18px -6px var(--shadow-2);
+    flex-direction: column; gap: 3px; font-weight: 400; font-size: 11.5px;
+    opacity: 0; visibility: hidden;
+  }
+  .pot-compact .pot-tip::after { display: block; }
+  .pot-compact .pot-tip span,
+  .pot-compact .pot-tip i { display: block; }
+  .pot-compact .pot-tool:hover .pot-tip,
+  .pot-compact .pot-tool:focus-visible .pot-tip {
+    opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+  }
+  .pot-compact .pot-tool { position: relative; }
+}
+
+/* ---------- the dragged tool ---------- */
+
+/* Picking a tool up turns it round into a writing grip — nib down and
+   towards the page, the body swung up out of the way of the line it's
+   drawing. It stands nib-up in the pot, so it has to come most of the way
+   round. The nib offsets in the views are measured against this angle. */
+.hand-tool {
+  position: fixed; width: 26px; height: 54px; z-index: 90;
+  pointer-events: none;
+  /* 150° is the resting state, not the end of the animation — if animations
+     are off or throttled the grip still has to be right, because the nib
+     offsets are measured against it. The keyframe is only the flourish. */
+  transform: rotate(150deg); transform-origin: 50% 50%;
+  animation: tool-grab .14s ease-out;
+  filter: drop-shadow(3px 5px 5px var(--shadow-2));
+}
+@keyframes tool-grab {
+  from { transform: rotate(10deg); }
+}
+.hand-tool svg { width: 100%; height: 100%; }
+.hand-tool.returning { opacity: 0; transition: opacity .18s; }
+
+/* Marks live on the task row — the row is the canvas. */
+.ink {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none; z-index: 3;
+}
+
+/* ---------- confetti ---------- */
+
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; }
+.confetti i {
+  position: absolute; width: 9px; height: 14px; border-radius: 2px;
+  animation: fall 1.5s cubic-bezier(.3, .6, .5, 1) forwards;
+}
+@keyframes fall {
+  from { transform: translateY(-20px) rotate(0); opacity: 1; }
+  to   { transform: translateY(72vh) rotate(540deg); opacity: 0; }
+}
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: var(--ink-deep); color: var(--paper);
+  padding: 11px 20px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  box-shadow: 0 10px 24px -10px var(--shadow-2); z-index: 95;
+  animation: toastIn .3s ease;
+}
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 12px); } }
+
+/* ---------- modal ---------- */
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgb(20 30 50 / .45);
+  display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100;
+}
+.modal { width: min(440px, 100%); padding: 22px; max-height: 90dvh; overflow-y: auto; }
+.modal h3 { font-size: 20px; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+.modal-actions .danger { color: var(--rust); margin-right: auto; }
+
+/* ---------- misc ---------- */
+
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Any run of buttons keeps the same rhythm wherever it appears. */
+.row > .btn, .badge-row > .btn { flex: 0 0 auto; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.muted { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+
+.switch {
+  width: 46px; height: 26px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--hair-strong); position: relative; flex-shrink: 0; padding: 0;
+  transition: background .2s;
+}
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--paper);
+  box-shadow: 0 1px 3px var(--shadow-2); transition: transform .2s;
+}
+.switch[aria-checked="true"] { background: var(--ink-blue); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+
+/* ---------- settings ---------- */
+
+.setting-row { padding: 12px 0; border-top: 1px solid var(--hair); }
+.setting-row:first-of-type { border-top: none; }
+.setting-row .muted { max-width: 44ch; }
+
+.stepper { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.stepper-value {
+  font-weight: 700; font-size: 13.5px; min-width: 66px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-color-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
+}
+.month-color { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.month-color input[type="color"] {
+  width: 38px; height: 30px; border: 1px solid var(--hair-strong); border-radius: 7px;
+  background: none; padding: 2px; cursor: pointer; flex-shrink: 0;
+}
+
+.stat-caption {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+
+.done-summary {
+  margin-top: 14px; border-top: 1px dashed var(--hair-strong); padding-top: 12px;
+}
+.done-toggle {
+  background: none; border: none; cursor: pointer; padding: 4px 0;
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  display: flex; align-items: center; gap: 7px;
+}
+.done-toggle:hover { color: var(--ink); }
+
+@media (max-width: 560px) {
+  .app { padding-left: 10px; padding-right: 10px; }
+  .card { padding: 16px; }
+  .day-cell { min-height: 52px; padding: 5px 2px; }
+  .cal-head { gap: 8px; }
+  .seg-item { padding: 9px 6px; font-size: 11.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .marquee-track { animation: none; }
+}
+
+/* ---------- the calendar head ---------- */
+
+.cal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+  min-height: 36px;
+}
+.title-row { align-items: center; gap: 6px; }
+.cal-title {
+  font-family: var(--font-display); font-size: clamp(17px, 2.4vw, 21px);
+  font-weight: 600; white-space: nowrap;
+}
+.cal-body { width: 100%; margin-top: 12px; }
+
+/* ---------- the time grid ----------
+
+   Two scroll boxes that must stay lined up: the header row and the body under
+   it. They share one column template so a day heading is always over its own
+   column, whatever the weekend setting does to the widths. */
+
+.grid { --rail: 52px; }
+
+.grid-head,
+.allday-row { display: grid; grid-template-columns: var(--rail) 1fr; }
+
+.head-cells,
+.allday-cells,
+.day-cols {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 7), minmax(0, 1fr));
+  gap: 0;
+}
+
+/* Narrowed weekends get a share of the row rather than an equal column. */
+.grid[data-weekends="narrow"] .head-cells,
+.grid[data-weekends="narrow"] .allday-cells,
+.grid[data-weekends="narrow"] .day-cols {
+  grid-template-columns: var(--week-cols);
+}
+
+.head-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 2px 8px; min-width: 0;
+  border-left: 1px solid var(--hair);
+}
+.head-cell:first-child { border-left: none; }
+.head-day {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.head-date {
+  font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  width: 28px; height: 28px; line-height: 28px; text-align: center;
+  border-radius: 50%;
+}
+.head-cell.today .head-date { background: var(--butter); color: #20395C; }
+.head-cell.today .head-day { color: var(--ink); }
+.head-cell.weekend .head-day { opacity: .62; }
+
+.allday-row { border-top: 1px solid var(--hair); }
+.allday-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 6px 6px 0 0; text-align: right;
+}
+.allday-cell {
+  border-left: 1px solid var(--hair); padding: 4px 3px;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.allday-cell:first-child { border-left: none; }
+.allday-chip {
+  border: none; cursor: pointer; text-align: left;
+  font-size: 10.5px; font-weight: 700; border-radius: 5px; padding: 3px 6px;
+  background: color-mix(in srgb, var(--event) 24%, var(--paper));
+  color: var(--ink); border-left: 3px solid var(--event);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.grid-body {
+  display: grid; grid-template-columns: var(--rail) 1fr;
+  max-height: min(64vh, 640px); overflow-y: auto; overflow-x: hidden;
+  border-top: 1px solid var(--hair-strong);
+  position: relative;
+  overscroll-behavior: contain;
+}
+
+.rail { position: relative; }
+.rail-hour {
+  position: absolute; right: 8px; transform: translateY(-50%);
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.day-cols { position: relative; }
+.day-col {
+  position: relative; min-width: 0;
+  border-left: 1px solid var(--hair);
+  touch-action: pan-y;
+}
+.day-col:first-child { border-left: none; }
+.day-col.weekend { background: color-mix(in srgb, var(--hair) 45%, transparent); }
+.day-col.today { background: color-mix(in srgb, var(--butter) 12%, transparent); }
+
+.hour-lines { position: absolute; inset: 0; pointer-events: none; }
+.hour-line {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: var(--hair);
+}
+
+.now-line {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: var(--marker); z-index: 6; pointer-events: none;
+}
+.now-line::before {
+  content: ""; position: absolute; left: -4px; top: -3px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--marker);
+}
+
+/* ---------- an event, as a little paper card ---------- */
+
+.event {
+  position: absolute; z-index: 4;
+  padding: 3px 6px 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--event) 18%, var(--paper));
+  border-left: 3px solid var(--event);
+  box-shadow: 0 1px 2px var(--shadow-1), 0 4px 10px -8px var(--shadow-2);
+  overflow: hidden; cursor: grab;
+  display: flex; flex-direction: column; gap: 1px;
+  touch-action: none;
+  transition: box-shadow .15s, transform .15s;
+}
+.event:hover { box-shadow: 0 2px 4px var(--shadow-1), 0 8px 16px -8px var(--shadow-2); }
+.event.dragging { cursor: grabbing; z-index: 20; transform: scale(1.02); }
+
+/* Not yet sent to Google — a torn, provisional edge rather than a solid one. */
+.event.draft { border-left-style: dashed; }
+
+/* A ten-minute task from the habit tracker is not a meeting, and shouldn't
+   look like one. */
+.event.task {
+  background: color-mix(in srgb, var(--event) 9%, var(--paper));
+  border-left-width: 2px;
+}
+
+.event-time {
+  font-size: 9.5px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.event-title {
+  font-size: 11.5px; font-weight: 700; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Short cards have room for one line only, so the time shares it. */
+.event[style*="height: 1"] .event-time,
+.event[style*="height: 2"] .event-time { display: none; }
+
+.event-grip {
+  position: absolute; left: 0; right: 0; height: 7px;
+  cursor: ns-resize;
+}
+.event-grip.top { top: 0; }
+.event-grip.bottom { bottom: 0; }
+
+/* ---------- freehand marks ---------- */
+
+/* Over the grid, under nothing — marks are the top layer, but they never
+   swallow a click meant for a card. */
+.ink {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible; z-index: 12;
+}
+.mark-surface { position: relative; }
+
+/* ---------- month ---------- */
+
+.month-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.dow {
+  font-size: 9.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  text-align: center; padding-bottom: 4px;
+}
+.month-cell {
+  border: 1px solid var(--hair); border-radius: var(--radius-sm);
+  padding: 5px 4px; min-height: 92px; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  cursor: pointer; transition: background .15s;
+}
+.month-cell:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.month-cell.outside { opacity: .42; }
+.month-cell.today { background: color-mix(in srgb, var(--butter) 22%, transparent); border-color: var(--butter-deep); }
+.month-n {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  align-self: flex-end;
+}
+.month-strip {
+  border: none; cursor: pointer; text-align: left; width: 100%;
+  display: flex; gap: 4px; align-items: baseline;
+  font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 5px;
+  background: color-mix(in srgb, var(--event) 22%, var(--paper));
+  border-left: 2.5px solid var(--event); color: var(--ink);
+  overflow: hidden; white-space: nowrap;
+}
+.month-strip.draft { border-left-style: dashed; }
+.month-strip i { font-style: normal; color: var(--muted); font-size: 9px; flex: none; }
+.month-strip span { overflow: hidden; text-overflow: ellipsis; }
+.month-more { font-size: 9.5px; font-weight: 700; color: var(--muted); padding-left: 4px; }
+
+/* ---------- agenda ---------- */
+
+.agenda { display: flex; flex-direction: column; gap: 16px; }
+.agenda-day { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: start; }
+.agenda-date {
+  display: flex; flex-direction: column; padding-top: 4px;
+  border-right: 1px solid var(--hair); padding-right: 10px;
+}
+.agenda-date b { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.agenda-date span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.agenda-date.today b { color: var(--ink-blue); }
+.agenda-items { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.agenda-item {
+  border: none; cursor: pointer; text-align: left;
+  display: grid; grid-template-columns: 116px 1fr; gap: 10px; align-items: baseline;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--event) 14%, var(--paper));
+  border-left: 3px solid var(--event); color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow-1);
+}
+.agenda-item.draft { border-left-style: dashed; }
+.agenda-when {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.agenda-title { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- the event dialog ---------- */
+
+.time-pair { display: flex; align-items: center; gap: 8px; }
+.time-pair .input { flex: 1; min-width: 0; }
+.checkline { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.draft-note { font-size: 12px; font-style: italic; }
+.ink-swatch.inherit {
+  background: repeating-linear-gradient(45deg,
+    var(--hair-strong) 0 4px, transparent 4px 8px);
+}
+
+/* ---------- calendars, in settings ---------- */
+
+.cal-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-top: 1px solid var(--hair);
+}
+.cal-row:first-child { border-top: none; }
+.cal-name { flex: 1; min-width: 0; }
+.icon-btn.danger { color: var(--rust); }
+.icon-btn:disabled { opacity: .3; cursor: default; }
+
+/* ---------- narrow screens ---------- */
+
+@media (max-width: 720px) {
+  .grid { --rail: 40px; }
+  .grid-body { max-height: 58vh; }
+  .event { padding: 2px 4px 2px 6px; }
+  .event-title { font-size: 10.5px; }
+  .agenda-day { grid-template-columns: 68px 1fr; gap: 8px; }
+  .agenda-item { grid-template-columns: 1fr; gap: 2px; }
+  .month-cell { min-height: 64px; }
+  .month-strip i { display: none; }
+  .cal-head { gap: 8px; }
+}
