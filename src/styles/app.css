@@ -623,7 +623,11 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   .pot-compact .pot-tool:focus-visible .pot-tip {
     opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
   }
-  .pot-compact .pot-tool { position: relative; }
+  /* Relative so the tooltip has something to anchor to — but the offsets
+     that stand a tool up inside the cup have to be cleared with it, or
+     `bottom: 40px` stops being ignored and lifts every tool 40px up the
+     page, onto whatever is above the row. */
+  .pot-compact .pot-tool { position: relative; inset: auto; }
 }
 
 /* ---------- the dragged tool ---------- */
@@ -840,6 +844,9 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 }
 
 .grid-body {
+  /* The hour labels are centred on their lines, so the first one needs a
+     little room above it or its top half is clipped off by the scroll box. */
+  padding-top: 9px;
   display: grid; grid-template-columns: var(--rail) 1fr;
   max-height: min(64vh, 640px); overflow-y: auto; overflow-x: hidden;
   border-top: 1px solid var(--hair-strong);
@@ -883,6 +890,8 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 .event {
   position: absolute; z-index: 4;
+  left: calc(var(--lane, 0) * (100% / var(--lanes, 1)));
+  width: calc(100% / var(--lanes, 1));
   padding: 3px 6px 3px 8px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--event) 18%, var(--paper));
@@ -914,9 +923,41 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   font-size: 11.5px; font-weight: 700; line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis;
 }
-/* Short cards have room for one line only, so the time shares it. */
-.event[style*="height: 1"] .event-time,
-.event[style*="height: 2"] .event-time { display: none; }
+/* How a card reads depends on the width it got, not its height. A card with
+   the column to itself can afford to show the time; one sharing the column
+   cannot, and the row it sits on already says when it is. */
+
+/* Alone in the column: short cards put the time inline rather than stacked. */
+.event[data-lanes="1"][data-size="short"],
+.event[data-lanes="1"][data-size="tiny"] {
+  flex-direction: row; gap: 5px; align-items: baseline;
+}
+
+/* Sharing the column: the name takes all of it, and is allowed to break. */
+.event:not([data-lanes="1"]) { padding-left: 5px; padding-right: 3px; }
+.event:not([data-lanes="1"]) .event-time { display: none; }
+.event:not([data-lanes="1"]) .event-title {
+  font-size: 10.5px; line-height: 1.15;
+  white-space: normal; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+}
+
+.event[data-size="tiny"] { padding-top: 1px; padding-bottom: 1px; }
+.event[data-size="tiny"] .event-title { font-size: 10px; -webkit-line-clamp: 1; }
+
+/* Hover or focus takes a crowded card back to the full column, so a busy
+   morning is readable without opening anything. This is why left and width
+   are custom properties — no !important needed to beat an inline style. */
+.event:hover, .event:focus-visible, .event.dragging {
+  left: 0; width: 100%;
+  z-index: 30;
+}
+.event:hover .event-time,
+.event:focus-visible .event-time { display: block; }
+.event:hover .event-title,
+.event:focus-visible .event-title {
+  font-size: 11.5px; -webkit-line-clamp: 3;
+}
 
 .event-grip {
   position: absolute; left: 0; right: 0; height: 7px;

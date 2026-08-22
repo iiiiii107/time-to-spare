@@ -76,16 +76,26 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
   const color = colorOf(event, store.state.calendars);
   const settings = store.state.settings;
 
+  const heightPx = height * pxPerMinute;
+
+  /* Only the lane numbers go inline; the stylesheet works out left and width
+     from them. That way hovering can widen a crowded card back to the full
+     column with an ordinary rule — an inline `width` would beat any rule
+     trying to override it, and so would an inline custom property. */
   const card = el('div', {
     class: `event${isDraft(event) ? ' draft' : ''}${event.origin === 'tracker' ? ' task' : ''}`,
     style: [
       `--event:${color}`,
+      `--lane:${lane}`,
+      `--lanes:${lanes}`,
       `top:${top * pxPerMinute}px`,
-      `height:${height * pxPerMinute}px`,
-      `left:${lane * width}%`,
-      `width:${width}%`,
+      `height:${heightPx}px`,
     ].join('; '),
-    dataset: { event: event.id },
+    dataset: {
+      event: event.id,
+      lanes: String(lanes),
+      size: heightPx < 30 ? 'tiny' : heightPx < 54 ? 'short' : 'normal',
+    },
     tabindex: '0',
     role: 'button',
     'aria-label': `${event.title || 'Untitled'}, ${formatSpan(event, settings)}`,
@@ -127,10 +137,15 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
     const originalEnd = minutesOf(event.end);
     let moved = false;
 
-    /** Pointer y → minutes from midnight, in the grid's own space. */
+    /* Pointer y → minutes from midnight.
+
+       Measured against a day column, not the scroll box. The column is the
+       element cards are positioned inside, so its box already accounts for
+       both the scroll offset and the padding the hour labels need — measuring
+       from the scroll box instead put every drag out by that padding. */
     function minutesAt(clientY) {
-      const gridBox = grid.getBoundingClientRect();
-      return range.from + (clientY - gridBox.top + grid.scrollTop) / pxPerMinute;
+      const column = card.closest('.day-col') || grid.querySelector('.day-col');
+      return range.from + (clientY - column.getBoundingClientRect().top) / pxPerMinute;
     }
 
     /* The card is moved directly rather than by re-rendering. A re-render per
@@ -226,6 +241,7 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
           class: 'allday-chip',
           style: `--event:${colorOf(event, store.state.calendars)}`,
           text: event.title || 'Untitled',
+          title: event.title || 'Untitled',
           onClick: () => onOpen(event),
         }),
       );
