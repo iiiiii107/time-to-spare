@@ -28,6 +28,9 @@ let potOpen = false;
 /** The grid element being marked on, for the pot to draw into. */
 let canvasNode = null;
 
+/** The grid awaiting measurement, once the card it lives on is in the page. */
+let pending = null;
+
 export function setMode(next) {
   mode = next;
 }
@@ -365,10 +368,18 @@ export function renderCalendar(root) {
     bodyWrap.append(grid.node);
     canvasNode = grid.columns;
     // Park the scroll near now rather than at midnight.
-    requestAnimationFrame(() => grid.node.__scrollToHour?.());
+    // Measured after the card is in the document, below — offsetHeight is 0
+    // until then, and the all-day strip pins against that height.
+    pending = grid.node;
   }
 
   root.append(card);
+
+  if (pending) {
+    pending.__measure?.();
+    pending.__scrollToHour?.();
+    pending = null;
+  }
 }
 
 export { minutesOf };

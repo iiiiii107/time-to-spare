@@ -374,10 +374,21 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
     columns.append(column);
   }
 
-  const body = el('div', { class: 'grid-body' }, [
+  /* Everything goes inside one scroll box.
+
+     The headings used to sit outside it. The moment the grid was tall enough
+     to scroll, its 15px scrollbar made the columns narrower than the headings
+     above them — a couple of pixels per column, so by Sunday the name was
+     thirteen pixels off its own day. Putting them in the same box makes them
+     the same width by construction rather than by arithmetic, and the heading
+     row is pinned so it stays put while the day scrolls under it. */
+  const inner = el('div', { class: 'grid-inner' }, [
+    head,
+    anyAllDay ? allDayRow : null,
     hourRail(range, pxPerMinute, settings),
     columns,
   ]);
+  const body = el('div', { class: 'grid-body' }, [inner]);
   body.__range = range;
 
   // Now, as a line across the days it belongs to.
@@ -412,15 +423,20 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
       `--cols:${days.length}`,
       template ? `--week-cols:${template}` : '',
     ].filter(Boolean).join('; '),
-  }, [
-    head,
-    anyAllDay ? allDayRow : null,
-    body,
-  ]);
+  }, [body]);
 
+  /* The all-day strip pins directly under the heading row, so it has to be
+     told how tall that row actually is rather than guessing. */
+  wrap.__measure = () => {
+    wrap.style.setProperty('--head-h', `${head.offsetHeight}px`);
+  };
+
+  /* The pinned rows sit above the columns in the scroll box, so getting a
+     given hour to the top means scrolling past them first. */
   wrap.__scrollToHour = () => {
-    const target = Math.max(0, (nowOrStart(range) - range.from) * pxPerMinute - 80);
-    body.scrollTop = target;
+    const pinned = columns.offsetTop;
+    const into = (nowOrStart(range) - range.from) * pxPerMinute - 80;
+    body.scrollTop = Math.max(0, pinned + into);
   };
 
   return { node: wrap, body, columns, range, pxPerMinute };

@@ -793,8 +793,26 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 .grid { --rail: 52px; }
 
+/* One grid inside the scroll box holds the lot, so the headings and the day
+   columns are laid out by the same track sizes and cannot drift apart. */
+.grid-inner { display: grid; grid-template-columns: var(--rail) 1fr; }
+
 .grid-head,
-.allday-row { display: grid; grid-template-columns: var(--rail) 1fr; }
+.allday-row {
+  display: grid; grid-template-columns: var(--rail) 1fr;
+  grid-column: 1 / -1;
+}
+
+/* Pinned, so the day names stay put while the day scrolls under them. */
+.grid-head {
+  position: sticky; top: 0; z-index: 14;
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--hair-strong);
+}
+.allday-row {
+  position: sticky; top: var(--head-h, 56px); z-index: 13;
+  background: var(--paper);
+}
 
 .head-cells,
 .allday-cells,
@@ -869,16 +887,20 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 }
 
 .grid-body {
-  /* The hour labels are centred on their lines, so the first one needs a
-     little room above it or its top half is clipped off by the scroll box. */
-  padding-top: 9px;
-  display: grid; grid-template-columns: var(--rail) 1fr;
-  max-height: min(64vh, 640px); overflow-y: auto; overflow-x: hidden;
+  max-height: min(72vh, 760px); overflow-y: auto; overflow-x: hidden;
   border-top: 1px solid var(--hair-strong);
   position: relative;
   overscroll-behavior: contain;
+  /* Reserve the scrollbar's width even before there is one, so the grid does
+     not shift sideways the first time it grows tall enough to scroll. */
+  scrollbar-gutter: stable;
 }
 
+.rail, .day-cols {
+  /* The hour labels are centred on their lines, so the first needs room above
+     it. Both take the same offset, so labels and lines stay in step. */
+  padding-top: 9px;
+}
 .rail { position: relative; }
 .rail-hour {
   position: absolute; right: 8px; transform: translateY(-50%);
