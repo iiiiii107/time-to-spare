@@ -33,10 +33,24 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The Firebase SDK is its own set of chunks and is only fetched when
+        // you sign in. Precaching it would put ~800 KB on every install,
+        // including for anyone who never turns sync on; the runtime rule below
+        // keeps it offline-ready from the first time it is used.
+        globIgnores: ['**/index.esm-*.js'],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/index\.esm-.*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'firebase-sdk',
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',

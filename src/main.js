@@ -5,6 +5,7 @@ import { formatLong, todayISO } from './lib/dates.js';
 import { registerServiceWorker } from './lib/pwa.js';
 import { currentMode, renderCalendar, setMode } from './views/calendar-views.js';
 import { applyTheme, applyType, renderSettings } from './views/settings.js';
+import { onAccountChange, restoreSession } from './lib/sync.js';
 
 /* Hash routing keeps GitHub Pages happy: every URL is really index.html, so
    there are no 404s on refresh and no rewrite rules to configure.
@@ -259,6 +260,11 @@ async function boot() {
 
   window.addEventListener('hashchange', go);
   store.addEventListener('change', () => go());
+
+  // If you signed in before, pick that session back up: the cloud copy slides
+  // in underneath and every view re-renders on the change it causes.
+  onAccountChange(() => go());
+  restoreSession().catch((err) => console.warn('Sync could not start.', err));
 
   // No hash means the view you chose in Settings.
   if (!location.hash) setMode(store.state.settings.home || 'week');

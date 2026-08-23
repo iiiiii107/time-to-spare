@@ -23,12 +23,28 @@ and built the same way: vanilla ES modules, no framework, no server.
   which hours are drawn and how tall an hour is, what the weekend gets, how
   long a new event is, the type, and the paper each view is printed on.
 
+## Sync
+
+Sign in with Google in *Other → Settings* and your calendar follows you between
+devices. It is stored under your own account, and the security rules make that
+the only place that account can reach.
+
+Same Firebase project as [10 Minutes to Spare](https://github.com/iiiiii107/10-minutes-to-spare),
+and the same sign-in — but its own document, `users/{uid}/app/calendar`. The
+tracker uses `users/{uid}/app/state`; sharing a path would have had each app
+overwrite the other every time you opened it.
+
+The config goes in `.env.local` locally (copy `.env.example`) and in a
+repository secret named `VITE_FIREBASE_CONFIG` for the deployed site. Leave it
+out and the app runs without sync, saving to the browser.
+
 ## Not yet
 
-Google Calendar. Everything currently lives in this browser. The event model
-already carries `origin` and `pushedAt`, so connecting Google is an addition
-rather than a migration — and when it lands, an event will only leave when you
-say so.
+**Google Calendar itself** — reading your real events in and pushing drafts up.
+Signing in works; the Calendar API does not yet. The event model already
+carries `origin` and `pushedAt`, so it is an addition rather than a migration
+of everything you have written by then — and when it lands, an event will only
+leave when you say so.
 
 ## Running it
 

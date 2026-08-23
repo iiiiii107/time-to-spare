@@ -28,7 +28,13 @@ jobs:
 
       - run: npm ci
       - run: npm test
+
+      # The Firebase web config. Not secret — every Firebase web app ships it
+      # to the browser — but kept as a repository secret so the values live in
+      # one place. Without it the site still builds, just without sync.
       - run: npm run build
+        env:
+          VITE_FIREBASE_CONFIG: ${{ secrets.VITE_FIREBASE_CONFIG }}
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

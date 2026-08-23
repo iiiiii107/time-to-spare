@@ -1,8 +1,9 @@
-import { clear, el, toast } from '../lib/dom.js';
+import { clear, el, svg, toast } from '../lib/dom.js';
 import { store, CALENDAR_COLORS } from '../lib/store.js';
 import { storage } from '../lib/storage.js';
 import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 import { formatTime } from '../lib/events.js';
+import { currentAccount, signIn, signOutOfSync, syncConfigured, syncError } from '../lib/sync.js';
 
 /* Settings.
 
@@ -202,6 +203,90 @@ function calendarList(rerender) {
   return wrap;
 }
 
+
+/* ---------- sync ---------- */
+
+/** The four-colour G, drawn rather than fetched — nothing loads from Google. */
+function googleMark() {
+  return svg('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true', class: 'google-mark' }, [
+    svg('path', { fill: '#4285F4', d: 'M45 24c0-1.6-.1-2.7-.4-4H24v7.5h12c-.2 2-1.5 5-4.4 7l6.7 5.2C42.2 36.2 45 30.7 45 24Z' }),
+    svg('path', { fill: '#34A853', d: 'M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8 41.2 15.4 46 24 46Z' }),
+    svg('path', { fill: '#FBBC05', d: 'M11.5 28.4A13.3 13.3 0 0 1 10.8 24c0-1.5.3-3 .7-4.4l-7.1-5.5A22 22 0 0 0 2 24c0 3.5.8 6.9 2.4 9.9Z' }),
+    svg('path', { fill: '#EA4335', d: 'M24 10.6c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.4 29.9 2 24 2 15.4 2 8 6.8 4.4 14.1l7.1 5.5C13.3 14.4 18.2 10.6 24 10.6Z' }),
+  ]);
+}
+
+/**
+ * Signing in puts your calendar in your own corner of the database — the same
+ * account as 10 Minutes to Spare, its own document, and the only place that
+ * account can reach.
+ */
+function syncCard() {
+  if (!syncConfigured()) {
+    return card('Sync', 'not set up for this site yet', [
+      el('p', { class: 'muted' }, [
+        'This copy has no Firebase project attached, so everything stays in this ',
+        'browser. See the README for the two settings it needs.',
+      ]),
+    ]);
+  }
+
+  const account = currentAccount();
+
+  if (!account) {
+    return card('Sync', 'the same calendar on your phone and your computer', [
+      el('p', { class: 'muted', style: 'margin-bottom:14px' }, [
+        'Sign in and your calendar follows you between devices. It is stored under ',
+        'your own account — nobody else who uses this site can see it.',
+      ]),
+      el('button', {
+        class: 'btn btn-secondary google-btn',
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            await signIn();
+          } catch (err) {
+            console.warn(err);
+            toast("Couldn't sign in — try again");
+            button.disabled = false;
+          }
+        },
+      }, [googleMark(), el('span', { text: 'Sign in with Google' })]),
+    ]);
+  }
+
+  const problem = syncError();
+
+  return card('Sync', problem ? 'signed in, but not syncing' : 'on — saving to your Google account', [
+    el('div', { class: 'row-between setting-row' }, [
+      el('div', { class: 'account' }, [
+        account.photo
+          ? el('img', { class: 'account-photo', src: account.photo, alt: '', referrerpolicy: 'no-referrer' })
+          : el('span', { class: 'account-photo account-initial', text: (account.name || '?')[0] }),
+        el('div', {}, [
+          el('div', { style: 'font-weight:700; font-size:14px', text: account.name || 'Signed in' }),
+          el('div', { class: 'muted', text: account.email || '' }),
+        ]),
+      ]),
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Sign out',
+        onClick: async () => {
+          await signOutOfSync();
+          toast('Signed out — back to this browser only');
+        },
+      }),
+    ]),
+    problem
+      ? el('p', { class: 'sync-problem', style: 'margin-top:12px', text: problem })
+      : el('p', { class: 'muted', style: 'margin-top:12px' }, [
+          'Changes save straight away and appear on your other devices within a second ',
+          'or two. It keeps working with no connection and catches up when you are back.',
+        ]),
+  ]);
+}
+
 /* ---------- the page ---------- */
 
 export function renderSettings(root) {
@@ -399,7 +484,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(view, density, making, type, paper, months, calendars, appearance, data);
+  root.append(syncCard(), view, density, making, type, paper, months, calendars, appearance, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */

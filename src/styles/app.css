@@ -345,7 +345,9 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
    rounded top corners — so they read as tabs of that panel rather than a
    second navigation bar competing with the one at the bottom. */
 .section-tabs {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  /* However many pages end up behind Other, they share the row equally —
+     it was fixed at four when there are three. */
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
   gap: 4px; margin-bottom: -14px; padding: 0 6px;
   position: relative; z-index: 2;
 }
@@ -361,6 +363,18 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   transition: background .18s, color .18s;
 }
 .section-tab span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.section-tab:hover { background: color-mix(in srgb, var(--paper) 84%, transparent); color: var(--ink); }
+
+/* The one you are on is an open folder tab: the same paper as the card below,
+   joined to it, with a coloured edge along the top. Without this nothing said
+   which of them you had opened. */
+.section-tab[aria-current="page"] {
+  background: var(--paper);
+  color: var(--ink-deep);
+  border-top: 3px solid var(--accent);
+  padding-top: 6px;
+  box-shadow: 0 -5px 14px -10px var(--shadow-2);
+}
 .section-tab:hover { color: var(--ink); }
 .section-tab[aria-selected="true"] {
   color: var(--ink-deep);
@@ -1457,3 +1471,61 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 }
 .tool-bar .sticker-tray { margin: 0; flex: 1; min-width: 0; }
 .tool-bar.with-pot .sticker-tray { flex: 1 1 320px; }
+
+/* ---------- the header, on a phone ----------
+
+   The full masthead is most of a small screen before anything useful starts.
+   Here it is a short bar: the wordmark on one line and the two drawn icons
+   beside it. The marquee goes entirely — a quote scrolling past is the last
+   thing worth the room when there is none.
+
+   Both states of the heading are shrunk together, and the bar keeps a floor
+   that clears the taller of them, so tapping the clock still can't jolt the
+   page. */
+@media (max-width: 720px) {
+  .marquee { display: none; }
+
+  .masthead { padding: 8px 10px 0; }
+  .masthead-panel { border-radius: 12px; }
+
+  .masthead-inner {
+    padding: 9px 96px 9px 14px;
+    min-height: 46px;
+    align-items: flex-start; text-align: left;
+  }
+
+  .wordmark { font-size: 20px; letter-spacing: -.3px; }
+  .wordmark-sub { display: none; }
+
+  /* Time and date share a line here. Stacked, the clock state was ten pixels
+     taller than the wordmark state, and the bar jumped every time you tapped
+     it. Side by side both states are one line, so it can't. */
+  .clock-face { display: flex; align-items: baseline; gap: 8px; }
+  .clock-face .clock-time { font-size: 20px; letter-spacing: -.3px; }
+  .clock-face .clock-date { font-size: 11px; margin-top: 0; }
+
+  /* Side by side rather than stacked, so the bar stays one row tall. */
+  .clock-btn, .app-link { top: 6px; width: 40px; height: 40px; padding: 5px; }
+  .clock-btn { right: 50px; }
+  .app-link { right: 8px; }
+}
+
+/* ---------- sync ---------- */
+
+.google-btn { display: inline-flex; align-items: center; gap: 9px; }
+.google-mark { width: 17px; height: 17px; flex: none; }
+
+.account { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.account-photo {
+  width: 36px; height: 36px; border-radius: 50%; flex: none;
+  border: 2px solid var(--ink); background: var(--paper);
+  box-shadow: 0 2px 0 var(--hair-strong);
+}
+.account-initial {
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 17px; color: var(--ink);
+}
+.sync-problem {
+  font-size: 13px; color: var(--rust);
+  border-left: 3px solid var(--rust); padding-left: 10px;
+}
