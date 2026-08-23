@@ -1381,3 +1381,65 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   padding: 2px 8px;
 }
 .fresh-page-undo:hover { color: var(--ink); }
+
+/* ---------- the sticker tray ----------
+   Little tinted labels waiting to be dropped on a day. They read as paper
+   the same way the event cards do, because that is what they become. */
+
+.sticker-tray {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  border: 1px solid var(--hair);
+}
+.tray-label, .tray-hint {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.tray-hint { font-weight: 600; letter-spacing: .02em; text-transform: none; font-style: italic; }
+
+.sticker {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 5px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--event) 22%, var(--paper));
+  border-left: 3px solid var(--event);
+  box-shadow: 0 1px 2px var(--shadow-1), 0 4px 10px -8px var(--shadow-2);
+  cursor: grab; touch-action: none; user-select: none;
+  transition: transform .14s, box-shadow .14s;
+}
+.sticker:hover { transform: translateY(-2px); box-shadow: 0 2px 4px var(--shadow-1), 0 8px 14px -8px var(--shadow-2); }
+.sticker.carrying { opacity: .35; cursor: grabbing; }
+.sticker b { font-size: 12px; font-weight: 700; }
+.sticker-len { font-size: 10px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* A single-use sticker is drawn as one you peel off. */
+.sticker.once { border-left-style: dashed; }
+
+.sticker-new {
+  border: 1.5px dashed var(--hair-strong); background: none; cursor: pointer;
+  border-radius: 7px; padding: 5px 10px;
+  font-size: 11.5px; font-weight: 700; color: var(--muted);
+  transition: border-color .14s, color .14s;
+}
+.sticker-new:hover { border-color: var(--ink-blue); color: var(--ink-blue); }
+
+/* the one in your hand */
+.sticker-ghost {
+  position: fixed; z-index: 95; pointer-events: none;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--event) 26%, var(--paper));
+  border-left: 3px solid var(--event);
+  box-shadow: 0 6px 16px -6px var(--shadow-2);
+  transform: rotate(-3deg);
+  opacity: .9;
+}
+.sticker-ghost b { font-size: 12px; font-weight: 700; }
+.sticker-ghost .sticker-when {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sticker-ghost.landing { transform: rotate(0deg) scale(1.04); opacity: 1; }
+
+/* the day it would land on */
+.day-col.taking { background: color-mix(in srgb, var(--ink-blue) 8%, transparent); }

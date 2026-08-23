@@ -78,6 +78,9 @@ export const DEFAULT_STATE = {
 
   /** Days and weeks torn off the pad, keyed the same way. */
   torn: {},
+
+  /** The tray you drag events out of. */
+  stickers: [],
 };
 
 export function clone(value) {

@@ -13,6 +13,7 @@ import { penPot } from './pot.js';
 import { toolStyleDialog } from './tool-style.js';
 import { inkLayer, startToolDrag } from './marker.js';
 import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable, tornBy } from './tear.js';
+import { stickerTray } from './stickers.js';
 
 /* The four ways of looking at the same events.
 
@@ -452,6 +453,12 @@ export function renderCalendar(root) {
       ]),
     );
   }
+
+  /* The tray sits above the page it drops onto. Only the time grids can take
+     a sticker — dropping one on a month cell would have to invent a time — so
+     elsewhere it still shows, and says so, rather than disappearing. */
+  const droppable = shapeOf(view) === 'day' || shapeOf(view) === 'week';
+  card.append(stickerTray({ droppable, onPlaced: () => rerender() }));
 
   const bodyWrap = el('div', { class: 'cal-body' });
   card.append(bodyWrap);

@@ -187,6 +187,63 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- stickers ----------------------------------------------------------
+
+  /**
+   * The things you schedule often enough to be worth keeping to hand. A
+   * sticker is not an event: it is the shape of one, waiting in the tray, and
+   * dragging it onto a day is what makes the event.
+   */
+  addSticker({ label, color, minutes = 15, singleUse = false }) {
+    const sticker = {
+      id: uid(),
+      label: label.trim(),
+      color: color || CALENDAR_COLORS[0],
+      minutes: Number(minutes) || 15,
+      singleUse: Boolean(singleUse),
+    };
+    this.state.stickers.push(sticker);
+    this.persist();
+    return sticker;
+  }
+
+  updateSticker(id, patch) {
+    const sticker = this.state.stickers.find((s) => s.id === id);
+    if (sticker) Object.assign(sticker, patch);
+    return this.persist();
+  }
+
+  deleteSticker(id) {
+    this.state.stickers = this.state.stickers.filter((s) => s.id !== id);
+    return this.persist();
+  }
+
+  moveSticker(id, direction) {
+    const list = this.state.stickers;
+    const at = list.findIndex((s) => s.id === id);
+    const to = at + direction;
+    if (at < 0 || to < 0 || to >= list.length) return this.persist();
+    [list[at], list[to]] = [list[to], list[at]];
+    return this.persist();
+  }
+
+  /**
+   * Turn a sticker into a real event on a day, at a time.
+   * A single-use sticker leaves the tray as it goes — it was one specific
+   * thing you meant to place, not a habit.
+   */
+  placeSticker(sticker, date, startMinutes) {
+    const event = this.addEvent({
+      date,
+      startMinutes,
+      endMinutes: startMinutes + (sticker.minutes || 15),
+      title: sticker.label,
+      color: sticker.color,
+    });
+    if (sticker.singleUse) this.deleteSticker(sticker.id);
+    return event;
+  }
+
   // ---- torn pages --------------------------------------------------------
 
   /** Days and weeks already torn off, so they aren't offered twice. */
