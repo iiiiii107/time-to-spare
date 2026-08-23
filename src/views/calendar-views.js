@@ -445,20 +445,24 @@ export function renderCalendar(root) {
     ]),
   );
 
-  if (potOpen) {
-    card.append(
-      el('div', { class: 'pen-bar' }, [
-        pot(),
-        el('span', { class: 'pen-hint', text: 'Drag a tool across the page. Hover one to see what it does.' }),
-      ]),
-    );
-  }
+  /* One bar for the things you pick up and put on the page: the tools, when
+     you have asked for them, and the stickers, always. The stickers were
+     below on their own and easy to miss entirely when the tray was empty.
 
-  /* The tray sits above the page it drops onto. Only the time grids can take
-     a sticker — dropping one on a month cell would have to invent a time — so
-     elsewhere it still shows, and says so, rather than disappearing. */
+     Only the time grids can take a sticker — dropping one on a month cell
+     would have to invent a time — so elsewhere the tray still shows and says
+     so rather than disappearing. */
   const droppable = shapeOf(view) === 'day' || shapeOf(view) === 'week';
-  card.append(stickerTray({ droppable, onPlaced: () => rerender() }));
+
+  card.append(
+    el('div', { class: `tool-bar${potOpen ? ' with-pot' : ''}` }, [
+      potOpen ? pot() : null,
+      potOpen
+        ? el('span', { class: 'pen-hint', text: 'Hover a tool. Hold space to lift it.' })
+        : null,
+      stickerTray({ droppable, onPlaced: () => rerender() }),
+    ]),
+  );
 
   const bodyWrap = el('div', { class: 'cal-body' });
   card.append(bodyWrap);

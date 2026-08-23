@@ -804,11 +804,12 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   grid-column: 1 / -1;
 }
 
-/* Pinned, so the day names stay put while the day scrolls under them. */
+/* Pinned against the page, so the day names stay with you as you scroll down
+   through the day. */
 .grid-head {
   position: sticky; top: 0; z-index: 14;
   background: var(--paper);
-  box-shadow: 0 1px 0 var(--hair-strong);
+  box-shadow: 0 1px 0 var(--hair-strong), 0 6px 12px -10px var(--shadow-2);
 }
 .allday-row {
   position: sticky; top: var(--head-h, 56px); z-index: 13;
@@ -887,14 +888,18 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   box-shadow: inset 6px 0 6px -6px var(--event), inset -6px 0 6px -6px var(--event);
 }
 
+/* The day is drawn at its full height and the page scrolls, rather than the
+   grid being a short box you scroll inside. A box within a box meant two
+   scrollbars and a day you could never see the whole of; now there is one
+   thing to scroll and the day is as tall as it is.
+
+   This also retires the alignment problem at its root: with no scrollbar
+   inside the grid, there is no width for the headings and the columns to
+   disagree about. They still share one set of tracks, so it cannot come back
+   if the box ever scrolls again. */
 .grid-body {
-  max-height: min(72vh, 760px); overflow-y: auto; overflow-x: hidden;
   border-top: 1px solid var(--hair-strong);
   position: relative;
-  overscroll-behavior: contain;
-  /* Reserve the scrollbar's width even before there is one, so the grid does
-     not shift sideways the first time it grows tall enough to scroll. */
-  scrollbar-gutter: stable;
 }
 
 .rail, .day-cols {
@@ -1443,3 +1448,12 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 /* the day it would land on */
 .day-col.taking { background: color-mix(in srgb, var(--ink-blue) 8%, transparent); }
+
+/* ---------- the tools and the stickers, one bar ---------- */
+
+.tool-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 12px 0 10px;
+}
+.tool-bar .sticker-tray { margin: 0; flex: 1; min-width: 0; }
+.tool-bar.with-pot .sticker-tray { flex: 1 1 320px; }

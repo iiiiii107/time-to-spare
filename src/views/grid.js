@@ -431,12 +431,16 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
     wrap.style.setProperty('--head-h', `${head.offsetHeight}px`);
   };
 
-  /* The pinned rows sit above the columns in the scroll box, so getting a
-     given hour to the top means scrolling past them first. */
+  /* The page scrolls now, not the grid, so bringing the current hour into
+     view means moving the window — and only when it is actually out of sight.
+     Yanking the whole page down on every render would be worse than landing
+     at the top of the day. */
   wrap.__scrollToHour = () => {
-    const pinned = columns.offsetTop;
-    const into = (nowOrStart(range) - range.from) * pxPerMinute - 80;
-    body.scrollTop = Math.max(0, pinned + into);
+    const into = (nowOrStart(range) - range.from) * pxPerMinute;
+    const target = columns.getBoundingClientRect().top + window.scrollY + into - 120;
+    if (target <= window.scrollY) return;
+    if (columns.getBoundingClientRect().top + into < window.innerHeight - 80) return;
+    window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
   };
 
   return { node: wrap, body, columns, range, pxPerMinute };
