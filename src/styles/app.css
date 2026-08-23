@@ -165,9 +165,9 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
    date and time; tapping again brings the wordmark back. */
 
 /* Two drawn things pinned in the corner of the page: the clock, which swaps
-   the wordmark for the time, and the calendar under it, which opens Google
-   Calendar where the timed tasks are written. */
-.clock-btn, .cal-link {
+   the wordmark for the time, and the bucket under it, which goes through to
+   the tracker where the small things are kept. */
+.clock-btn, .app-link {
   position: absolute; right: 12px; z-index: 3;
   width: 44px; height: 44px; padding: 7px;
   border: none; border-radius: 12px; cursor: pointer;
@@ -176,12 +176,12 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   transition: background .18s, transform .18s;
 }
 .clock-btn { top: 12px; }
-.cal-link { top: 58px; }
+.app-link { top: 58px; }
 
-.clock-btn:hover, .cal-link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.clock-btn:active, .cal-link:active { transform: scale(.92); }
+.clock-btn:hover, .app-link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.clock-btn:active, .app-link:active { transform: scale(.92); }
 .clock-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 9%, transparent); }
-.clock-btn svg, .cal-link svg { width: 100%; height: 100%; }
+.clock-btn svg, .app-link svg { width: 100%; height: 100%; }
 
 .clock-face { font-variant-numeric: tabular-nums; }
 .clock-face .clock-time {

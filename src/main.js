@@ -88,6 +88,36 @@ function clockIcon() {
   ]);
 }
 
+
+/* A bucket, in the same flat drawn style as the clock — the pair read as two
+   things pinned in the corner of the page rather than two icon sets. It goes
+   to 10 Minutes to Spare, where the small things are kept: a bucket is what
+   you drop them into, and it is where they wait until you have ten minutes. */
+function bucketIcon() {
+  return svg('svg', { viewBox: '0 0 64 64', fill: 'none', 'aria-hidden': 'true' }, [
+    // the handle, arcing over
+    svg('path', {
+      d: 'M20 20a12 12 0 0 1 24 0',
+      stroke: 'var(--ink)', 'stroke-width': '3', 'stroke-linecap': 'round',
+    }),
+    // the pail: wider at the rim than the base
+    svg('path', {
+      d: 'M13 21H51L46.5 52A4 4 0 0 1 42.5 55.5H21.5A4 4 0 0 1 17.5 52Z',
+      fill: 'var(--butter)', stroke: 'var(--ink)', 'stroke-width': '2.8',
+      'stroke-linejoin': 'round',
+    }),
+    // the band round the rim
+    svg('path', {
+      d: 'M13 21H51L50 28H14Z',
+      fill: 'var(--rust)', stroke: 'var(--ink)', 'stroke-width': '2.4',
+      'stroke-linejoin': 'round',
+    }),
+    // two small things in it, since that is what it is for
+    svg('circle', { cx: '26', cy: '38', r: '3.4', fill: 'var(--sage)', stroke: 'var(--ink)', 'stroke-width': '2' }),
+    svg('circle', { cx: '38', cy: '45', r: '3.4', fill: 'var(--ink-blue)', stroke: 'var(--ink)', 'stroke-width': '2' }),
+  ]);
+}
+
 function tickClock() {
   const now = new Date();
   const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -115,10 +145,23 @@ function buildMasthead(onToggleTime) {
         el('p', { class: 'wordmark-sub', text: 'a week you shaped yourself' }),
       ]);
 
+  /* Through to the tracker — the other half of the same desk. A link rather
+     than a scripted window.open, so it behaves like every other link and can
+     be middle-clicked or long-pressed. */
+  const bucketLink = el('a', {
+    class: 'app-link',
+    href: 'https://iiiiii107.github.io/10-minutes-to-spare/',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    'aria-label': 'Open 10 Minutes to Spare in a new tab',
+    title: '10 minutes to spare — the little things',
+  }, [bucketIcon()]);
+
   return el('header', { class: 'masthead' }, [
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
       clockButton,
+      bucketLink,
       el('div', { class: 'masthead-inner' }, [heading]),
     ]),
   ]);
