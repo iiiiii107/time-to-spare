@@ -12,6 +12,7 @@ import { eventDialog } from './event-dialog.js';
 import { penPot } from './pot.js';
 import { toolStyleDialog } from './tool-style.js';
 import { inkLayer, startToolDrag } from './marker.js';
+import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable, tornBy } from './tear.js';
 
 /* The four ways of looking at the same events.
 
@@ -412,11 +413,14 @@ export function renderCalendar(root) {
      window is padded a little either side: something that began before the
      period can still reach into it. */
   const [from, to] = windowFor(shapeOf(view));
+  // A page with something on it again comes back before anything is drawn.
   const events = expandAll(
     visibleEvents(store.state.events, store.state.calendars),
     from,
     to,
   );
+  refreshTorn(events);
+
   const card = el('div', { class: 'card paper' });
 
   card.append(
@@ -468,6 +472,13 @@ export function renderCalendar(root) {
       bodyWrap.append(surface);
     }
     canvasNode = surface;
+  } else if (isTornNow(shape, anchor)) {
+    // Torn off. A clean sheet until something turns up on it again.
+    const undo = tornBy(shape, anchor);
+    bodyWrap.append(freshPage(
+      shape === 'week' ? 'this week is behind you' : 'that day is done',
+      undo ? { ...undo, onDone: () => rerender() } : null,
+    ));
   } else {
     const days = shape === 'day'
       ? [anchor]
@@ -481,7 +492,9 @@ export function renderCalendar(root) {
       onCreate: (seed) => eventDialog(null, seed),
       onDragEnd: () => rerender(),
     });
-    bodyWrap.append(grid.node);
+
+    const target = tearable(shape, anchor, events);
+    bodyWrap.append(target ? makeTearZone(grid.node, target, () => rerender()) : grid.node);
     canvasNode = grid.columns;
     // Park the scroll near now rather than at midnight.
     // Measured after the card is in the document, below — offsetHeight is 0

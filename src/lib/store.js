@@ -187,6 +187,25 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  // ---- torn pages --------------------------------------------------------
+
+  /** Days and weeks already torn off, so they aren't offered twice. */
+  isTorn(kind, key) {
+    return Boolean(this.state.torn?.[`${kind}:${key}`]);
+  }
+
+  tearOff(kind, key) {
+    if (!this.state.torn) this.state.torn = {};
+    this.state.torn[`${kind}:${key}`] = new Date().toISOString();
+    return this.persist();
+  }
+
+  /** A page comes back when there's something on it again. */
+  untear(kind, key) {
+    if (this.state.torn) delete this.state.torn[`${kind}:${key}`];
+    return this.persist();
+  }
+
   // ---- settings ----------------------------------------------------------
 
   updateSettings(patch) {

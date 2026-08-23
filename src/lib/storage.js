@@ -75,6 +75,9 @@ export const DEFAULT_STATE = {
 
   /** Freehand marks, keyed 'week:2026-08-24' / 'day:2026-08-24'. */
   marks: {},
+
+  /** Days and weeks torn off the pad, keyed the same way. */
+  torn: {},
 };
 
 export function clone(value) {

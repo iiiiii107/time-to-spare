@@ -1286,3 +1286,98 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 /* The tools sat close enough to the controls above to be clicked by accident. */
 .pen-bar { margin: 12px 0 4px; padding-top: 6px; }
+/* ---------- tearing a page off ----------
+   The heading stays; everything below it rips away downward. The falling
+   piece is clipped along the rip, and a paper strip shaped to the same rip
+   gives the piece that stays a ragged underside — so both halves share one
+   tear. The clean sheet waits underneath. */
+
+.tear-zone { position: relative; padding-bottom: 4px; }
+
+/* the ragged underside of the part that stays put */
+.tear-stub-edge {
+  position: absolute; top: 0; left: 0; right: 0;
+  width: 100%; height: 12px; z-index: 3; pointer-events: none;
+  opacity: 0; transition: opacity .12s;
+}
+.tear-zone.ripping .tear-stub-edge { opacity: 1; }
+
+/* the clean page waiting underneath */
+.tear-fresh {
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: var(--radius-sm);
+  background:
+    repeating-linear-gradient(transparent 0 27px, var(--paper-line) 27px 28px);
+  opacity: 0; transition: opacity .2s;
+}
+.tear-zone.ripping .tear-fresh { opacity: .55; }
+
+.tear-page {
+  position: relative; z-index: 2;
+  background: var(--paper);
+  will-change: transform;
+}
+.tear-page.torn {
+  animation: tearAway .64s cubic-bezier(.36, 0, .66, .2) forwards;
+  pointer-events: none;
+}
+@keyframes tearAway {
+  0%   { opacity: 1; }
+  70%  { opacity: .9; }
+  100% { opacity: 0; transform: translateY(150%) rotate(5deg); }
+}
+
+.tear-grip {
+  position: relative; z-index: 6;
+  margin: 0 0 8px; padding: 6px 14px 8px;
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 5px;
+  cursor: grab; touch-action: none; user-select: none;
+  border-radius: var(--radius-sm);
+  transition: background .15s;
+}
+.tear-grip:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* A row of perforations, so it reads as the line the page comes away along. */
+.tear-grip-line {
+  width: 100%; max-width: none; height: 5px; border-radius: 0;
+  background: radial-gradient(circle, var(--hair-strong) 1.6px, transparent 1.7px);
+  background-size: 9px 5px;
+}
+.tear-grip:hover .tear-grip-line {
+  background: radial-gradient(circle, var(--accent) 1.6px, transparent 1.7px);
+  background-size: 9px 5px;
+}
+.tear-grip:active { cursor: grabbing; }
+.tear-grip-line { width: 52px; height: 4px; border-radius: 999px; background: var(--hair-strong); }
+.tear-grip-text {
+  font-family: var(--font-display); font-style: italic; font-weight: 600;
+  font-size: 13.5px; color: var(--accent);
+}
+.tear-grip:hover .tear-grip-line { background: var(--accent); }
+
+/* what's left once the page has gone */
+.fresh-page {
+  min-height: 120px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(transparent 0 27px, var(--paper-line) 27px 28px);
+}
+.fresh-page-note {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 15px; color: var(--muted);
+  background: var(--paper); padding: 2px 12px;
+}
+
+/* The grid is taller than a task list, so the clean page underneath has to be
+   worth looking at rather than a thin strip. */
+.fresh-page { min-height: 220px; }
+.tear-zone .grid { border-radius: var(--radius-sm); overflow: hidden; }
+
+/* Tearing the wrong day shouldn't be permanent. */
+.fresh-page { flex-direction: column; gap: 10px; }
+.fresh-page-undo {
+  border: none; background: none; cursor: pointer;
+  font-family: var(--font-display); font-style: italic; font-size: 12.5px;
+  color: var(--accent); text-decoration: underline; text-underline-offset: 3px;
+  padding: 2px 8px;
+}
+.fresh-page-undo:hover { color: var(--ink); }
