@@ -1544,3 +1544,32 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   font-size: 13px; color: var(--rust);
   border-left: 3px solid var(--rust); padding-left: 10px;
 }
+
+/* ---------- a tool in your hand ----------
+   A phone has no space bar, so picking a tool up is a mode instead: tapped,
+   it stays in your hand and a finger on the page draws, until you tap it
+   again. The tool says so, and the page it draws on says so too. */
+
+.pot-tool.in-hand {
+  background: color-mix(in srgb, var(--butter) 55%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--butter-deep);
+}
+.pot-compact .pot-tool.in-hand { background: var(--butter); }
+
+/* Crosshair rather than a pointer, and no accidental panning or text
+   selection while a finger is meant to be drawing. */
+.mark-surface.armed,
+.day-cols.armed {
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.day-cols.armed .event,
+.day-cols.armed .day-col { cursor: crosshair; }
+
+.pen-hint.holding {
+  color: var(--ink);
+  font-weight: 700;
+  font-style: normal;
+}

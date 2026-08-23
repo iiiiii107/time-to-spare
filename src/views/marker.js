@@ -1,4 +1,4 @@
-import { el, svg } from '../lib/dom.js';
+import { capturePointer, el, svg } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { pathFromPoints, simplify, toolWith } from '../lib/tools.js';
 import { toolSvg } from './pot.js';
@@ -21,6 +21,39 @@ import { toolSvg } from './pot.js';
    - The nib is offset from the pointer, because the tool is drawn turned 150°
      into a writing grip. The offsets below match that angle; change one and
      you have to change the other. */
+
+/* ---------- the tool in your hand ----------
+
+   A phone has no space bar, so the same idea arrives as a mode: tap a tool
+   and it is in your hand, draw with a finger as often as you like, tap it
+   again to put it down. Nothing else on the page answers while a tool is
+   armed — a tap on the grid draws instead of making an event, which is the
+   whole point of having picked something up.
+
+   Dragging a tool straight out of the pot still works. A press that never
+   moves is a tap and arms; a press that travels is a drag. */
+
+let armed = null;
+const armedWatchers = new Set();
+
+/** The tool currently in hand, or null. */
+export function armedTool() {
+  return armed;
+}
+
+export function setArmed(toolId) {
+  armed = toolId;
+  armedWatchers.forEach((fn) => fn(armed));
+}
+
+export function toggleArmed(toolId) {
+  setArmed(armed === toolId ? null : toolId);
+}
+
+export function onArmedChange(fn) {
+  armedWatchers.add(fn);
+  return () => armedWatchers.delete(fn);
+}
 
 /** Where the nib sits relative to the pointer, given the 150° grip. */
 export const NIB_OFFSET_X = 14;
@@ -72,6 +105,11 @@ export function startToolDrag({
   let wiped = false;
   let erasedSomething = false;
   let lifted = false;
+
+  /* A press that never travels is a tap, and a tap picks the tool up rather
+     than drawing a dot nobody asked for. */
+  const from = { x: event.clientX, y: event.clientY };
+  let travelled = false;
 
   /** End the current stroke without ending the drag. */
   function liftNib() {
@@ -151,6 +189,12 @@ export function startToolDrag({
     setTimeout(() => ghost.remove(), 180);
     source.classList.remove('lifted');
 
+    // Never went anywhere: you tapped it, so it goes in your hand.
+    if (!travelled) {
+      toggleArmed(toolId);
+      return;
+    }
+
     if (tool.erases) {
       if (wiped) store.clearMarks(markKey);
       if (erasedSomething) onErased?.();
@@ -176,6 +220,114 @@ export function startToolDrag({
   window.addEventListener('keyup', onKeyUp);
   // Losing the window while space is held would otherwise leave the nib down.
   window.addEventListener('blur', liftNib);
+}
+
+
+/* ---------- drawing with the tool already in hand ---------- */
+
+/**
+ * Wire a surface up so that, while a tool is armed, pressing on it draws.
+ *
+ * Each press-drag-release is one stroke, saved on release — the same rule as
+ * dragging from the pot, and for the same reason: a save re-renders the view
+ * and would pull the surface out from under the next stroke.
+ *
+ * The nib is under the finger here, not offset. The offset exists because a
+ * dragged tool is drawn in your hand and has to write from its tip; there is
+ * no drawn tool in this mode, so writing anywhere but exactly under the touch
+ * would just feel broken.
+ *
+ * @param {object} options
+ * @param {HTMLElement} options.canvas the element holding the .ink layer
+ * @param {string} options.markKey where finished marks are stored
+ * @param {(nib: {x: number, y: number}) => boolean} [options.onErase]
+ * @param {() => void} [options.onErased]
+ */
+export function armedDrawing({ canvas, markKey, onErase, onErased }) {
+  if (!armed || !canvas) return;
+  const layer = canvas.querySelector('.ink');
+  if (!layer) return;
+
+  const tool = toolWith(armed, store.state.settings.toolStyles?.[armed]);
+  canvas.classList.add('armed');
+
+  canvas.addEventListener('pointerdown', (event) => {
+    // Still armed? The mode can be dropped between renders.
+    if (!armed) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    capturePointer(canvas, event.pointerId);
+
+    const box = () => canvas.getBoundingClientRect();
+    const points = [];
+    let path = null;
+    let wiped = false;
+    let erasedSomething = false;
+
+    const at = (e) => {
+      const b = box();
+      return { x: e.clientX - b.left, y: e.clientY - b.top };
+    };
+
+    function draw(e) {
+      if (tool.erases) {
+        if (onErase?.({ x: e.clientX, y: e.clientY })) erasedSomething = true;
+        if (layer.childElementCount) {
+          layer.replaceChildren();
+          wiped = true;
+        }
+        return;
+      }
+      if (!path) {
+        path = svg('path', {
+          fill: 'none',
+          stroke: tool.ink || 'var(--ink)',
+          'stroke-width': String(tool.width),
+          'stroke-opacity': String(tool.opacity),
+          'stroke-linecap': tool.id === 'highlighter' ? 'butt' : 'round',
+          'stroke-linejoin': 'round',
+        });
+        layer.append(path);
+      }
+      points.push(at(e));
+      path.setAttribute('d', pathFromPoints(simplify(points)));
+    }
+
+    draw(event);
+
+    function onMove(moveEvent) {
+      moveEvent.preventDefault();
+      draw(moveEvent);
+    }
+
+    function onUp() {
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onUp);
+
+      if (tool.erases) {
+        if (wiped) store.clearMarks(markKey);
+        if (erasedSomething) onErased?.();
+        return;
+      }
+      if (points.length < 2 || !path) {
+        path?.remove();
+        return;
+      }
+      store.addMarks(markKey, [{
+        d: path.getAttribute('d'),
+        ink: tool.ink || 'var(--ink)',
+        width: tool.width,
+        opacity: tool.opacity,
+        cap: tool.id === 'highlighter' ? 'butt' : 'round',
+      }]);
+    }
+
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onUp);
+  });
 }
 
 /** The layer marks are drawn into, with everything already saved redrawn. */

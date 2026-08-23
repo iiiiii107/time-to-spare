@@ -5,7 +5,7 @@ import {
   dateOf, daySpan, eventsOn, layoutDay, minutesOf, snapTo, timeOf, visibleRange,
 } from '../lib/layout.js';
 import { addDays, todayISO } from '../lib/dates.js';
-import { inkLayer } from './marker.js';
+import { armedTool, inkLayer } from './marker.js';
 
 /* The time grid, shared by the week and the day.
 
@@ -124,6 +124,8 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
   card.addEventListener('pointerdown', (pointerEvent) => {
     // A tool being dragged out of the pot must not be intercepted by a card.
     if (pointerEvent.target.closest('.pot-tool')) return;
+    // Nor should a card move when you meant to draw over it.
+    if (armedTool()) return;
     pointerEvent.stopPropagation();
 
     const box = card.getBoundingClientRect();
@@ -363,6 +365,9 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
     column.addEventListener('pointerdown', (pointerEvent) => {
       if (pointerEvent.target.closest('.event')) return;
       if (pointerEvent.target.closest('.pot-tool')) return;
+      // With something in your hand, a press on the grid is a stroke, not a
+      // new event — that is the whole point of having picked it up.
+      if (armedTool()) return;
       const box = column.getBoundingClientRect();
       const minutes = snapTo(
         range.from + (pointerEvent.clientY - box.top) / pxPerMinute,

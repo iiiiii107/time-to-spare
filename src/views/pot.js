@@ -86,13 +86,19 @@ function toolArt(id, ink) {
  * Hovering says what the tool does, because "highlighter" doesn't tell you
  * that it deliberately leaves the task undone.
  */
-function toolButton(id, { onDragStart, onAdjust, styles, index }) {
+function toolButton(id, { onDragStart, onAdjust, styles, index, armed }) {
   const tool = toolWith(id, styles?.[id]);
+  const inHand = armed === id;
 
   const node = el('div', {
-    class: `pot-tool${tool.adjustable ? ' pot-tool-adjustable' : ''}`,
+    class: [
+      'pot-tool',
+      tool.adjustable ? 'pot-tool-adjustable' : '',
+      inHand ? 'in-hand' : '',
+    ].filter(Boolean).join(' '),
     role: 'button',
     tabindex: '0',
+    'aria-pressed': String(inHand),
     'aria-label': `${tool.label}. ${tool.hint}`,
     dataset: { tool: id, slot: String(index) },
   }, [
@@ -100,8 +106,12 @@ function toolButton(id, { onDragStart, onAdjust, styles, index }) {
       toolArt(id, tool.ink),
     ]),
     el('span', { class: 'pot-tip', role: 'tooltip' }, [
-      el('b', { text: tool.label }),
-      el('span', { text: tool.hint }),
+      el('b', { text: inHand ? `${tool.label} — in hand` : tool.label }),
+      el('span', {
+        text: inHand
+          ? 'Draw anywhere on the page. Tap it again to put it down.'
+          : tool.hint,
+      }),
       tool.adjustable
         ? el('i', { text: 'Double-click to change its colour and width' })
         : null,
@@ -167,11 +177,12 @@ export function toolSvg(id, ink) {
  * @param {(id: string, event: PointerEvent, node: HTMLElement) => void} options.onDragStart
  * @param {(id: string) => void} [options.onAdjust] double-click on an adjustable tool
  * @param {object} [options.styles] per-tool colour and width overrides
+ * @param {string|null} [options.armed] the tool currently in hand, if any
  * @param {boolean} [options.compact] phone layout — a flat row instead of a cup
  */
-export function penPot({ onDragStart, onAdjust, styles, compact = false }) {
+export function penPot({ onDragStart, onAdjust, styles, armed = null, compact = false }) {
   const buttons = TOOL_ORDER.map((id, index) =>
-    toolButton(id, { onDragStart, onAdjust, styles, index }),
+    toolButton(id, { onDragStart, onAdjust, styles, index, armed }),
   );
 
   if (compact) {

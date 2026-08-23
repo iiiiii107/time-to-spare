@@ -6,6 +6,7 @@ import { registerServiceWorker } from './lib/pwa.js';
 import { currentMode, renderCalendar, setMode } from './views/calendar-views.js';
 import { applyTheme, applyType, renderSettings } from './views/settings.js';
 import { onAccountChange, restoreSession } from './lib/sync.js';
+import { onArmedChange, setArmed } from './views/marker.js';
 
 /* Hash routing keeps GitHub Pages happy: every URL is really index.html, so
    there are no 404s on refresh and no rewrite rules to configure.
@@ -264,6 +265,11 @@ async function boot() {
   // If you signed in before, pick that session back up: the cloud copy slides
   // in underneath and every view re-renders on the change it causes.
   onAccountChange(() => go());
+
+  // Picking a tool up or putting it down changes what the page answers to.
+  onArmedChange(() => go());
+  // Leaving for another view puts whatever was in your hand back.
+  window.addEventListener('hashchange', () => setArmed(null));
   restoreSession().catch((err) => console.warn('Sync could not start.', err));
 
   // No hash means the view you chose in Settings.

@@ -11,7 +11,7 @@ import { timeGrid, weekDays, weekStartsOn } from './grid.js';
 import { eventDialog } from './event-dialog.js';
 import { penPot } from './pot.js';
 import { toolStyleDialog } from './tool-style.js';
-import { inkLayer, startToolDrag } from './marker.js';
+import { armedDrawing, armedTool, inkLayer, onArmedChange, setArmed, startToolDrag } from './marker.js';
 import { freshPage, isTornNow, makeTearZone, refreshTorn, tearable, tornBy } from './tear.js';
 import { stickerTray } from './stickers.js';
 
@@ -136,6 +136,7 @@ function potToggle() {
 
 function pot() {
   return penPot({
+    armed: armedTool(),
     onDragStart: (toolId, event, source) => startToolDrag({
       toolId,
       event,
@@ -458,7 +459,12 @@ export function renderCalendar(root) {
     el('div', { class: `tool-bar${potOpen ? ' with-pot' : ''}` }, [
       potOpen ? pot() : null,
       potOpen
-        ? el('span', { class: 'pen-hint', text: 'Hover a tool. Hold space to lift it.' })
+        ? el('span', {
+            class: `pen-hint${armedTool() ? ' holding' : ''}`,
+            text: armedTool()
+              ? 'Draw anywhere. Tap the tool again to put it down.'
+              : 'Tap a tool to pick it up, or drag it out. Hold space to lift it.',
+          })
         : null,
       stickerTray({ droppable, onPlaced: () => rerender() }),
     ]),
@@ -511,6 +517,11 @@ export function renderCalendar(root) {
     // Measured after the card is in the document, below — offsetHeight is 0
     // until then, and the all-day strip pins against that height.
     pending = grid.node;
+  }
+
+  // With a tool in hand, pressing the page draws on it.
+  if (armedTool() && canvasNode) {
+    armedDrawing({ canvas: canvasNode, markKey: markKey() });
   }
 
   root.append(card);
