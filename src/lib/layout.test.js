@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cluster, dateOf, eventsOn, layoutDay, minutesOf, overlaps, snapTo, timeOf, visibleRange,
+  cluster, dateOf, daySpan, eventsOn, layoutDay, minutesOf, overlaps, segmentOn,
+  snapTo, spansDate, timeOf, visibleRange,
 } from './layout.js';
 
 const at = (start, end, extra = {}) => ({
@@ -240,5 +241,113 @@ describe('eventsOn', () => {
     expect(day[0].title).toBe('holiday');
     expect(day[1].title).toBe('09:00–10:00');
     expect(day[2].title).toBe('14:00–15:00');
+  });
+});
+
+describe('multi-day events', () => {
+  const trip = {
+    id: 'trip', title: 'Trip', allDay: true,
+    start: '2026-08-24T00:00', end: '2026-08-27T23:59',
+  };
+  const overnight = {
+    id: 'shift', title: 'Night shift', allDay: false,
+    start: '2026-08-24T22:00', end: '2026-08-25T06:00',
+  };
+
+  it('spans every day it covers', () => {
+    expect(spansDate(trip, '2026-08-24')).toBe(true);
+    expect(spansDate(trip, '2026-08-26')).toBe(true);
+    expect(spansDate(trip, '2026-08-27')).toBe(true);
+    expect(spansDate(trip, '2026-08-28')).toBe(false);
+    expect(spansDate(trip, '2026-08-23')).toBe(false);
+  });
+
+  it('counts the days it covers, both ends included', () => {
+    expect(daySpan(trip)).toBe(4);
+    expect(daySpan(overnight)).toBe(2);
+    expect(daySpan({ start: '2026-08-24T09:00', end: '2026-08-24T10:00' })).toBe(1);
+  });
+
+  it('leaves a same-day event untouched', () => {
+    const one = { start: '2026-08-24T09:00', end: '2026-08-24T10:00' };
+    const piece = segmentOn(one, '2026-08-24');
+    expect(piece.start).toBe(one.start);
+    expect(piece.continuesBefore).toBe(false);
+    expect(piece.continuesAfter).toBe(false);
+  });
+
+  it('clamps the first night to midnight and says it carries on', () => {
+    const piece = segmentOn(overnight, '2026-08-24');
+    expect(piece.start).toBe('2026-08-24T22:00');
+    expect(piece.end).toBe('2026-08-24T23:59');
+    expect(piece.continuesAfter).toBe(true);
+    expect(piece.continuesBefore).toBe(false);
+  });
+
+  it('starts the second day at midnight and says it came from before', () => {
+    const piece = segmentOn(overnight, '2026-08-25');
+    expect(piece.start).toBe('2026-08-25T00:00');
+    expect(piece.end).toBe('2026-08-25T06:00');
+    expect(piece.continuesBefore).toBe(true);
+    expect(piece.continuesAfter).toBe(false);
+  });
+
+  it('gives a middle day the whole day', () => {
+    const piece = segmentOn(trip, '2026-08-26');
+    expect(piece.start).toBe('2026-08-26T00:00');
+    expect(piece.end).toBe('2026-08-26T23:59');
+    expect(piece.continuesBefore).toBe(true);
+    expect(piece.continuesAfter).toBe(true);
+  });
+
+  it('is nothing at all on a day it does not touch', () => {
+    expect(segmentOn(trip, '2026-09-01')).toBe(null);
+  });
+
+  it('turns up in every day it covers, not just the first', () => {
+    // The bug this guards: filtering by start date alone made a four-day trip
+    // vanish after its first day.
+    for (const date of ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27']) {
+      expect(eventsOn([trip], date).length).toBe(1);
+    }
+    expect(eventsOn([trip], '2026-08-28').length).toBe(0);
+  });
+
+  it('lays the overnight piece out against the day it is on', () => {
+    const [placed] = layoutDay(eventsOn([overnight], '2026-08-25'), { from: 0 });
+    expect(placed.top).toBe(0);
+    expect(placed.height).toBe(360);
+  });
+});
+
+describe('visibleRange over segments', () => {
+  const overnight = {
+    id: 'shift', title: 'Night shift', allDay: false,
+    start: '2026-08-24T22:00', end: '2026-08-25T06:00',
+  };
+
+  it('reaches midnight for the morning half of an overnight event', () => {
+    // Asked about the raw event, the range says "not far": the stored end is
+    // 06:00, earlier than the 22:00 start. Asked about the piece that will
+    // actually be drawn, it reaches midnight — without which that piece is
+    // laid out above the top of the grid and cannot be seen.
+    const morning = eventsOn([overnight], '2026-08-25');
+    expect(visibleRange({ firstHour: 7, lastHour: 22 }, morning).from).toBe(0);
+  });
+
+  it('still reaches the late end for the night half', () => {
+    const night = eventsOn([overnight], '2026-08-24');
+    expect(visibleRange({ firstHour: 7, lastHour: 22 }, night).to).toBe(24 * 60);
+  });
+
+  it('lays both halves inside the grid', () => {
+    const days = ['2026-08-24', '2026-08-25'];
+    const perDay = days.map((d) => eventsOn([overnight], d));
+    const range = visibleRange({ firstHour: 7, lastHour: 22 }, perDay.flat());
+    for (const day of perDay) {
+      for (const placed of layoutDay(day, range)) {
+        expect(placed.top).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 });

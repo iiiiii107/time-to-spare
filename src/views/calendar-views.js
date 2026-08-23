@@ -2,6 +2,7 @@ import { clear, el, svg } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { colorOf, formatSpan, formatTime, isDraft, visibleEvents } from '../lib/events.js';
 import { eventsOn, minutesOf } from '../lib/layout.js';
+import { expandAll } from '../lib/recur.js';
 import {
   addDays, addMonths, formatLong, formatShort, fromISO, orderedDayNames,
   startOfMonth, startOfWeek, todayISO,
@@ -56,10 +57,19 @@ function markKey() {
 function step(direction) {
   const view = currentMode();
   if (view === 'month') anchor = addMonths(startOfMonth(anchor), direction);
-  else if (view === 'week') anchor = addDays(anchor, direction * 7);
+  else if (view === 'week') anchor = addDays(anchor, direction * weekStride());
   else if (view === 'agenda') anchor = addDays(anchor, direction * 14);
   else anchor = addDays(anchor, direction);
   rerender();
+}
+
+/** A week moves by a week — unless a phone is only showing part of one. */
+function weekStride() {
+  if (!isNarrow()) return 7;
+  const how = store.state.settings.narrow || 'threeDays';
+  if (how === 'threeDays') return 3;
+  if (how === 'day') return 1;
+  return 7;
 }
 
 function periodTitle() {
@@ -154,7 +164,7 @@ function monthView(events) {
     for (const event of day.slice(0, 4)) {
       cell.append(
         el('button', {
-          class: `month-strip${isDraft(event) ? ' draft' : ''}`,
+          class: `month-strip${isDraft(event) ? ' draft' : ''}${event.isOccurrence ? ' repeats' : ''}`,
           style: `--event:${colorOf(event, store.state.calendars)}`,
           title: `${event.title || 'Untitled'} · ${formatSpan(event, settings)}`,
           onClick: (clickEvent) => { clickEvent.stopPropagation(); eventDialog(event); },
@@ -202,7 +212,7 @@ function agendaView(events) {
         ]),
         el('div', { class: 'agenda-items' }, day.map((event) =>
           el('button', {
-            class: `agenda-item${isDraft(event) ? ' draft' : ''}`,
+            class: `agenda-item${isDraft(event) ? ' draft' : ''}${event.isOccurrence ? ' repeats' : ''}`,
             style: `--event:${colorOf(event, store.state.calendars)}`,
             onClick: () => eventDialog(event),
           }, [
@@ -220,6 +230,44 @@ function agendaView(events) {
   return list;
 }
 
+
+/** The span of dates a view needs, with a little slack either side. */
+function windowFor(view) {
+  if (view === 'month') {
+    const first = startOfMonth(anchor);
+    return [addDays(startOfWeek(first, weekStartsOn()), -7), addDays(first, 49)];
+  }
+  if (view === 'week') {
+    const start = startOfWeek(anchor, weekStartsOn());
+    return [addDays(start, -7), addDays(start, 13)];
+  }
+  if (view === 'agenda') return [addDays(anchor, -7), addDays(anchor, 60)];
+  return [addDays(anchor, -2), addDays(anchor, 2)];
+}
+
+
+/** True when the screen is too narrow for seven usable columns. */
+function isNarrow() {
+  return window.matchMedia('(max-width: 720px)').matches;
+}
+
+/**
+ * What a week does on a phone. Seven columns at 375px leaves about 45px each,
+ * which is a coloured sliver and not a calendar — so unless you have asked for
+ * exactly that, the week shows fewer days and moves along.
+ */
+function narrowedWeek(days) {
+  if (!isNarrow()) return days;
+  const how = store.state.settings.narrow || 'threeDays';
+  if (how === 'squeeze') return days;
+  if (how === 'day') return [anchor];
+
+  // Three days, starting from the one you are looking at, kept inside the week.
+  const at = Math.max(0, days.indexOf(anchor));
+  const from = Math.min(at, Math.max(0, days.length - 3));
+  return days.slice(from, from + 3);
+}
+
 /* ---------- the page ---------- */
 
 export function renderCalendar(root) {
@@ -232,7 +280,16 @@ export function renderCalendar(root) {
   // The stock this view is printed on — a Settings choice, not a fixed style.
   document.body.dataset.paper = store.state.settings.paper?.[view] || 'ruled';
 
-  const events = visibleEvents(store.state.events, store.state.calendars);
+  /* Repeating events are stored once and worked out for the window being
+     looked at, so a weekly meeting is one object however long it runs. The
+     window is padded a little either side: something that began before the
+     period can still reach into it. */
+  const [from, to] = windowFor(view);
+  const events = expandAll(
+    visibleEvents(store.state.events, store.state.calendars),
+    from,
+    to,
+  );
   const card = el('div', { class: 'card paper' });
 
   const zooms = el('div', { class: 'seg seg-wide', role: 'tablist', 'aria-label': 'Zoom' },
@@ -295,7 +352,7 @@ export function renderCalendar(root) {
   } else {
     const days = view === 'day'
       ? [anchor]
-      : weekDays(startOfWeek(anchor, weekStartsOn()));
+      : narrowedWeek(weekDays(startOfWeek(anchor, weekStartsOn())));
 
     const grid = timeGrid({
       days,

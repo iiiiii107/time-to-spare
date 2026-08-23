@@ -217,6 +217,17 @@ export function renderSettings(root) {
         (value) => { store.updateSettings({ weekends: value }); },
       )),
 
+    settingRow('On a narrow screen', 'Seven columns on a phone leaves about 45px each.',
+      segmented(
+        [
+          { value: 'threeDays', label: '3 days' },
+          { value: 'day', label: 'One day' },
+          { value: 'squeeze', label: 'All 7' },
+        ],
+        s.narrow || 'threeDays',
+        (value) => store.updateSettings({ narrow: value }),
+      )),
+
     settingRow('Time', null,
       segmented(
         [{ value: false, label: '24h' }, { value: true, label: '12h' }],

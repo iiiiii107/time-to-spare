@@ -71,14 +71,63 @@ export function visibleRange(settings = {}, events = []) {
   return { from, to };
 }
 
-/** Events that belong to one date, timed ones first and in clock order. */
+/** Does any part of this event fall on this date? */
+export function spansDate(event, date) {
+  return dateOf(event.start) <= date && dateOf(event.end) >= date;
+}
+
+/**
+ * The piece of an event that belongs to one day.
+ *
+ * An event that runs past midnight is one thing to you and two pieces of
+ * grid, so each day gets the part of it that falls there, clamped to the ends
+ * of that day. `continuesBefore` and `continuesAfter` let the card show that
+ * it carries on rather than pretending it stops at midnight.
+ *
+ * Returns null when the event doesn't touch the day at all.
+ */
+export function segmentOn(event, date) {
+  if (!spansDate(event, date)) return null;
+
+  const startsHere = dateOf(event.start) === date;
+  const endsHere = dateOf(event.end) === date;
+  if (startsHere && endsHere) {
+    return { ...event, continuesBefore: false, continuesAfter: false };
+  }
+
+  return {
+    ...event,
+    // The stored times stay put; only this piece's own ends are clamped.
+    start: startsHere ? event.start : `${date}T00:00`,
+    end: endsHere ? event.end : `${date}T23:59`,
+    continuesBefore: !startsHere,
+    continuesAfter: !endsHere,
+  };
+}
+
+/**
+ * Everything on one date, as pieces — all-day first, then in clock order.
+ * A multi-day event appears on every day it covers.
+ */
 export function eventsOn(events, date) {
   return events
-    .filter((event) => dateOf(event.start) === date)
+    .map((event) => segmentOn(event, date))
+    .filter(Boolean)
     .sort((a, b) => {
       if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
       return minutesOf(a.start) - minutesOf(b.start) || minutesOf(b.end) - minutesOf(a.end);
     });
+}
+
+/** How many days an event covers, counting both ends. 1 for a normal one. */
+export function daySpan(event) {
+  return Math.max(1, daysApart(dateOf(event.start), dateOf(event.end)) + 1);
+}
+
+function daysApart(from, to) {
+  const a = Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10));
+  const b = Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10));
+  return Math.round((b - a) / 86400000);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { storage } from './storage.js';
 import { makeEvent, uid } from './events.js';
+import { parseOccurrenceId } from './recur.js';
 
 /* Single source of truth. Views read `store.state`, call an action, and
    re-render on the change event — no view mutates state directly. */
@@ -54,8 +55,51 @@ class Store extends EventTarget {
     return this.persist();
   }
 
+  /**
+   * The stored event behind an id. An occurrence's id carries the date the
+   * rule produced it on, so it resolves back to its master.
+   */
   eventById(id) {
-    return this.state.events.find((e) => e.id === id);
+    const direct = this.state.events.find((e) => e.id === id);
+    if (direct) return direct;
+    const { seriesId } = parseOccurrenceId(id);
+    return this.state.events.find((e) => e.id === seriesId);
+  }
+
+  // ---- repeating events --------------------------------------------------
+
+  /**
+   * Change one occurrence without touching the rest of the series.
+   * The exception is filed under the date the rule produced, never the date
+   * the occurrence has been moved to — otherwise the rule could not find it
+   * again and the change would come back as a duplicate.
+   */
+  overrideOccurrence(seriesId, occurrenceDate, patch) {
+    const master = this.state.events.find((e) => e.id === seriesId);
+    if (!master) return this.persist();
+    if (!master.exceptions) master.exceptions = {};
+    master.exceptions[occurrenceDate] = {
+      ...(master.exceptions[occurrenceDate] || {}),
+      ...patch,
+    };
+    return this.persist();
+  }
+
+  /** Take one occurrence out of the series, leaving the rest alone. */
+  cancelOccurrence(seriesId, occurrenceDate) {
+    return this.overrideOccurrence(seriesId, occurrenceDate, { cancelled: true });
+  }
+
+  /**
+   * Editing the whole series drops the per-occurrence exceptions, because
+   * they were answers to a shape the series no longer has.
+   */
+  updateSeries(seriesId, patch) {
+    const master = this.state.events.find((e) => e.id === seriesId);
+    if (!master) return this.persist();
+    Object.assign(master, patch);
+    if (patch.recur !== undefined) delete master.exceptions;
+    return this.persist();
   }
 
   /**
@@ -64,8 +108,18 @@ class Store extends EventTarget {
    */
   stageEvent(id, patch) {
     const event = this.state.events.find((e) => e.id === id);
-    if (event) Object.assign(event, patch);
-    return event;
+    if (event) {
+      Object.assign(event, patch);
+      return event;
+    }
+
+    // Dragging one occurrence of a series moves only that occurrence.
+    const { seriesId, date } = parseOccurrenceId(id);
+    const master = this.state.events.find((e) => e.id === seriesId);
+    if (!master || !date) return null;
+    if (!master.exceptions) master.exceptions = {};
+    master.exceptions[date] = { ...(master.exceptions[date] || {}), ...patch };
+    return master;
   }
 
   commit() {

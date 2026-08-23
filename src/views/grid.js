@@ -1,7 +1,9 @@
 import { capturePointer, el } from '../lib/dom.js';
 import { store } from '../lib/store.js';
 import { colorOf, formatSpan, formatTime, isDraft, movedTo, resizedTo } from '../lib/events.js';
-import { eventsOn, layoutDay, minutesOf, snapTo, timeOf, visibleRange } from '../lib/layout.js';
+import {
+  dateOf, daySpan, eventsOn, layoutDay, minutesOf, snapTo, timeOf, visibleRange,
+} from '../lib/layout.js';
 import { addDays, todayISO } from '../lib/dates.js';
 import { inkLayer } from './marker.js';
 
@@ -83,7 +85,12 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
      column with an ordinary rule — an inline `width` would beat any rule
      trying to override it, and so would an inline custom property. */
   const card = el('div', {
-    class: `event${isDraft(event) ? ' draft' : ''}${event.origin === 'tracker' ? ' task' : ''}`,
+    class: [
+      'event',
+      isDraft(event) ? 'draft' : '',
+      event.origin === 'tracker' ? 'task' : '',
+      event.isOccurrence ? 'repeats' : '',
+    ].filter(Boolean).join(' '),
     style: [
       `--event:${color}`,
       `--lane:${lane}`,
@@ -208,6 +215,59 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
   return card;
 }
 
+
+/**
+ * All-day events as bars over a run of days, packed into rows.
+ *
+ * Each bar knows which column it starts in and how many it spans, so a
+ * four-day trip is one element rather than four chips that happen to sit next
+ * to each other. Two bars that share a day go on separate rows.
+ *
+ * @returns {{event: object, column: number, span: number,
+ *            continuesBefore: boolean, continuesAfter: boolean}[][]}
+ */
+function allDayBars(days, events) {
+  const first = days[0];
+  const last = days[days.length - 1];
+
+  const found = events
+    .filter((event) => event.allDay && dateOf(event.end) >= first && dateOf(event.start) <= last)
+    .sort((a, b) => a.start.localeCompare(b.start) || daySpan(b) - daySpan(a));
+
+  const rows = [];
+
+  for (const event of found) {
+    // Clamp to the days actually on screen; the flags say it carries on.
+    const from = Math.max(0, days.indexOf(clampDate(dateOf(event.start), first, last)));
+    const to = Math.max(from, days.indexOf(clampDate(dateOf(event.end), first, last)));
+
+    const bar = {
+      event,
+      column: from + 1, // CSS grid columns are 1-based
+      span: to - from + 1,
+      continuesBefore: dateOf(event.start) < first,
+      continuesAfter: dateOf(event.end) > last,
+    };
+
+    // The first row with nothing already occupying those columns.
+    let row = rows.find((existing) => existing.every((other) =>
+      bar.column + bar.span <= other.column || other.column + other.span <= bar.column));
+    if (!row) {
+      row = [];
+      rows.push(row);
+    }
+    row.push(bar);
+  }
+
+  return rows;
+}
+
+function clampDate(date, first, last) {
+  if (date < first) return first;
+  if (date > last) return last;
+  return date;
+}
+
 /* ---------- the whole grid ---------- */
 
 /**
@@ -221,34 +281,50 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
  */
 export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd }) {
   const settings = store.state.settings;
-  const range = visibleRange(settings, events);
+  /* Segments first, then the range from the segments.
+
+     An event running 22:00 → 06:00 next day has a stored end of 06:00, which
+     is *earlier* than its start, so asking the raw event how far the grid must
+     reach says "not far". Its second piece then began at midnight, four hours
+     above a grid starting at seven, and was drawn off the top. Cutting the
+     pieces first means the range is worked out from what is actually going to
+     be drawn. */
+  const perDay = new Map(days.map((date) => [date, eventsOn(events, date)]));
+  const range = visibleRange(settings, [...perDay.values()].flat());
   const pxPerMinute = (settings.hourHeight ?? 52) / 60;
   const height = (range.to - range.from) * pxPerMinute;
   const today = todayISO();
 
   // ---- the all-day strip ----
+  /* A trip is one thing, so it is drawn as one bar across the days it covers
+     rather than repeated once per day. Bars are packed into rows so two that
+     overlap don't land on top of each other; each row is its own grid, laid
+     over the same columns as the days below. */
+  const bars = allDayBars(days, events);
+  const anyAllDay = bars.length > 0;
+
   const allDayRow = el('div', { class: 'allday-row' }, [
     el('div', { class: 'allday-label', text: 'all day' }),
-  ]);
-  let anyAllDay = false;
-  const allDayCells = el('div', { class: 'allday-cells' });
-  for (const date of days) {
-    const cell = el('div', { class: 'allday-cell', dataset: { date } });
-    for (const event of eventsOn(events, date).filter((e) => e.allDay)) {
-      anyAllDay = true;
-      cell.append(
+    el('div', { class: 'allday-stack' }, bars.map((row) =>
+      el('div', { class: 'allday-cells' }, row.map((bar) =>
         el('button', {
-          class: 'allday-chip',
-          style: `--event:${colorOf(event, store.state.calendars)}`,
-          text: event.title || 'Untitled',
-          title: event.title || 'Untitled',
-          onClick: () => onOpen(event),
+          class: [
+            'allday-chip',
+            bar.continuesBefore ? 'from-before' : '',
+            bar.continuesAfter ? 'into-after' : '',
+            isDraft(bar.event) ? 'draft' : '',
+          ].filter(Boolean).join(' '),
+          style: [
+            `--event:${colorOf(bar.event, store.state.calendars)}`,
+            `grid-column:${bar.column} / span ${bar.span}`,
+          ].join('; '),
+          text: bar.event.title || 'Untitled',
+          title: bar.event.title || 'Untitled',
+          onClick: () => onOpen(bar.event),
         }),
-      );
-    }
-    allDayCells.append(cell);
-  }
-  allDayRow.append(allDayCells);
+      )),
+    )),
+  ]);
 
   // ---- the headers ----
   const head = el('div', { class: 'grid-head' }, [
@@ -279,7 +355,7 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
 
     column.append(hourLines(range, pxPerMinute));
 
-    for (const placed of layoutDay(eventsOn(events, date), range)) {
+    for (const placed of layoutDay(perDay.get(date) || [], range)) {
       column.append(eventCard(placed, { pxPerMinute, onOpen, onDragEnd }));
     }
 

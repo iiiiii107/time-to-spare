@@ -40,9 +40,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 html { font-size: calc(100% * var(--text-scale, 1)); }
 
 /* ---------- per-view paper stock ----------
-   Each view has its own ground, and the pattern printed on it is yours to
-   choose in Settings. The four views share one paper and one accent so that
-   changing zoom never reads as arriving somewhere else. */
+
+   The card is the same sheet everywhere — that is what stops changing zoom
+   from reading as arriving in a different app. What varies is the desk it is
+   lying on: the page tint and the accent, so you can tell at a glance which
+   view you are in without the content changing character.
+
+   Week and day are deliberately identical. They are the same grid at two
+   magnifications, so giving them different grounds would be saying they are
+   different things. The pattern printed on the page is yours to set. */
 
 body { --paper: var(--paper-today); background-color: var(--bg-today); }
 body[data-view="month"]    { background-color: var(--bg-lists); }
@@ -830,17 +836,36 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   text-transform: uppercase; color: var(--muted);
   padding: 6px 6px 0 0; text-align: right;
 }
-.allday-cell {
-  border-left: 1px solid var(--hair); padding: 4px 3px;
-  display: flex; flex-direction: column; gap: 3px; min-width: 0;
-}
-.allday-cell:first-child { border-left: none; }
+/* Bars are packed into rows, and every row lies over the same columns as the
+   days below it, so a four-day trip is one element spanning four columns
+   rather than four chips pretending to be one. */
+.allday-stack { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
+.allday-stack .allday-cells { gap: 0; }
+
 .allday-chip {
   border: none; cursor: pointer; text-align: left;
-  font-size: 10.5px; font-weight: 700; border-radius: 5px; padding: 3px 6px;
+  font-size: 10.5px; font-weight: 700; border-radius: 5px;
+  padding: 3px 6px; margin: 0 2px;
   background: color-mix(in srgb, var(--event) 24%, var(--paper));
   color: var(--ink); border-left: 3px solid var(--event);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.allday-chip.draft { border-left-style: dashed; }
+
+/* A bar that runs off the edge of the week says so: the end it continues
+   through loses its rounding and its margin, so it runs to the edge. */
+.allday-chip.from-before {
+  border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0;
+  margin-left: 0; padding-left: 8px;
+  box-shadow: inset 6px 0 6px -6px var(--event);
+}
+.allday-chip.into-after {
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+  margin-right: 0;
+  box-shadow: inset -6px 0 6px -6px var(--event);
+}
+.allday-chip.from-before.into-after {
+  box-shadow: inset 6px 0 6px -6px var(--event), inset -6px 0 6px -6px var(--event);
 }
 
 .grid-body {
@@ -1074,4 +1099,39 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   .month-cell { min-height: 64px; }
   .month-strip i { display: none; }
   .cal-head { gap: 8px; }
+}
+
+/* ---------- repeating events ---------- */
+
+.repeat { display: flex; flex-direction: column; gap: 8px; }
+.repeat-detail { display: flex; flex-direction: column; gap: 8px; }
+.repeat-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.repeat-line > span { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.input.interval { width: 74px; flex: none; }
+.repeat-summary {
+  font-size: 12px; font-style: italic; color: var(--muted);
+}
+.series-note {
+  font-size: 12.5px; margin-bottom: 12px;
+  border-left: 3px solid var(--butter-deep); padding-left: 10px;
+}
+
+.day-toggles { display: flex; gap: 4px; flex-wrap: wrap; }
+.day-toggle {
+  min-width: 32px; padding: 5px 6px; cursor: pointer;
+  font-size: 11px; font-weight: 700;
+  border: 1px solid var(--hair-strong); border-radius: 7px;
+  background: transparent; color: var(--muted);
+  transition: background .14s, color .14s, border-color .14s;
+}
+.day-toggle:hover { border-color: var(--ink); color: var(--ink); }
+.day-toggle[aria-pressed="true"] {
+  background: var(--ink-blue); border-color: var(--ink-blue); color: var(--btn-text);
+}
+
+/* A repeating card carries a small mark, so you can see it is one of a set
+   without opening it. */
+.event.repeats .event-title::after,
+.agenda-item.repeats .agenda-title::after {
+  content: " ↻"; opacity: .5; font-size: .9em;
 }

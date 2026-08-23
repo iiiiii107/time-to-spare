@@ -31,6 +31,10 @@ export const DEFAULT_STATE = {
     // 'full' | 'narrow' | 'hidden'
     weekends: 'full',
 
+    // What the week does on a phone, where seven columns leave 45px each.
+    // 'threeDays' | 'day' | 'squeeze'
+    narrow: 'threeDays',
+
     // New events
     defaultMinutes: 30,
     snapMinutes: 15,

@@ -43,6 +43,9 @@ export function makeEvent(fields, settings = {}) {
     allDay: Boolean(fields.allDay),
     color: fields.color || null,
     note: fields.note || '',
+    // A rule if it repeats, and the per-occurrence answers to it.
+    recur: fields.recur || null,
+    exceptions: {},
     origin: 'local',
     pushedAt: null,
     createdAt: new Date().toISOString(),
