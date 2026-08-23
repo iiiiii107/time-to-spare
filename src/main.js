@@ -13,17 +13,22 @@ import { applyTheme, applyType, renderSettings } from './views/settings.js';
    Month get one each because they are the two you actually live in; Day,
    Agenda and Settings sit behind Other. */
 
-const CALENDAR_VIEWS = ['week', 'day', 'month', 'agenda'];
+const CALENDAR_VIEWS = ['today', 'week', 'month', 'agenda', 'year'];
 
+/* Four tabs, and each one is a place rather than a setting. Today, Week and
+   Month are what you actually look at, so they go straight there — no row of
+   zoom buttons underneath repeating what the tab already said. Everything
+   else lives behind Other, which is where any new page goes. */
 const SECTIONS = [
+  { id: 'today', label: 'Today', href: '#/today', icon: '📌' },
   { id: 'week', label: 'Week', href: '#/week', icon: '🗓️' },
   { id: 'month', label: 'Month', href: '#/month', icon: '📅' },
   { id: 'other', label: 'Other', href: '#/agenda', icon: '⋯' },
 ];
 
 const OTHER = [
-  { id: 'day', label: 'Day', icon: '📄' },
   { id: 'agenda', label: 'Agenda', icon: '📋' },
+  { id: 'year', label: 'Yearly', icon: '🗂️' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -34,7 +39,7 @@ const MARQUEE = [
 ];
 
 function sectionFor(viewId) {
-  if (viewId === 'week' || viewId === 'month') return viewId;
+  if (['today', 'week', 'month'].includes(viewId)) return viewId;
   return 'other';
 }
 
@@ -43,6 +48,12 @@ function currentViewId() {
   if (id === 'settings' || CALENDAR_VIEWS.includes(id)) return id;
   return store.state?.settings?.home || 'week';
 }
+
+/** Title-cased, for the tab title. */
+const VIEW_TITLES = {
+  today: 'Today', week: 'Week', month: 'Month',
+  agenda: 'Agenda', year: 'Year', settings: 'Settings',
+};
 
 /* The clock. Tapping it swaps the wordmark for the date and time, and tapping
    again puts them back — the time is one tap away without permanently taking
@@ -192,7 +203,7 @@ function route(chrome) {
 
   setMode(id);
   renderCalendar(body);
-  document.title = `${id[0].toUpperCase()}${id.slice(1)} · Time to Spare`;
+  document.title = `${VIEW_TITLES[id] || 'Time'} · Time to Spare`;
 }
 
 async function boot() {

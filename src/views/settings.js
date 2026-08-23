@@ -104,6 +104,35 @@ function importData() {
   picker.remove();
 }
 
+
+/* ---------- month colours ---------- */
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function monthColorGrid() {
+  const grid = el('div', { class: 'month-color-grid' });
+  MONTH_NAMES.forEach((name, index) => {
+    const month = index + 1;
+    grid.append(
+      el('label', { class: 'month-color' }, [
+        el('input', {
+          type: 'color',
+          value: store.state.settings.monthColors?.[month] || '#7C93B8',
+          'aria-label': `${name} colour`,
+          onChange: (event) => store.updateSettings({
+            monthColors: { ...store.state.settings.monthColors, [month]: event.target.value },
+          }),
+        }),
+        el('span', { text: name }),
+      ]),
+    );
+  });
+  return grid;
+}
+
 /* ---------- calendars ---------- */
 
 function calendarList(rerender) {
@@ -342,6 +371,8 @@ export function renderSettings(root) {
     ),
   ]);
 
+  const months = card('Month colours', 'tints the month grid and the year view', [monthColorGrid()]);
+
   const calendars = card('Calendars', 'colour, order, and what shows', [calendarList(rerender)]);
 
   const appearance = card('Appearance', 'light, dark, or follow your device', [
@@ -368,7 +399,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(view, density, making, type, paper, calendars, appearance, data);
+  root.append(view, density, making, type, paper, months, calendars, appearance, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */

@@ -1157,3 +1157,119 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 .agenda-item.repeats .agenda-title::after {
   content: " ↻"; opacity: .5; font-size: .9em;
 }
+
+/* ---------- the year ----------
+   Twelve small months, each wearing its own colour, so the shape of a year
+   is legible without reading a single date. */
+
+.year-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.mini-month {
+  border: 1px solid var(--hair); border-radius: var(--radius-sm);
+  padding: 9px 10px 11px;
+  background: color-mix(in srgb, var(--month) 9%, transparent);
+  border-top: 3px solid var(--month);
+}
+.mini-title {
+  display: block; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer; padding: 0 0 7px;
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  color: var(--ink-deep);
+}
+.mini-title:hover { color: var(--month); }
+.mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.mini-dow {
+  font-size: 8px; font-weight: 700; color: var(--muted);
+  text-align: center; padding-bottom: 3px; text-transform: uppercase;
+}
+.mini-day {
+  border: none; background: none; cursor: pointer; padding: 0;
+  aspect-ratio: 1; border-radius: 4px;
+  font-size: 9.5px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mini-day:hover:not(:disabled) { background: color-mix(in srgb, var(--month) 30%, transparent); }
+.mini-day.outside { visibility: hidden; }
+.mini-day.busy { background: color-mix(in srgb, var(--month) 22%, transparent); font-weight: 800; }
+.mini-day.today {
+  background: var(--butter); color: #20395C;
+  box-shadow: 0 0 0 1.5px var(--butter-deep);
+}
+
+/* ---------- the month, and the paper beside it ---------- */
+
+.month-layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 1000px) {
+  .month-layout { grid-template-columns: 1fr auto; align-items: start; }
+}
+
+.month-grid { border-top: 3px solid var(--month, var(--ink-blue)); padding-top: 10px; }
+.month-cell.today {
+  background: color-mix(in srgb, var(--month, var(--butter)) 26%, transparent);
+  border-color: var(--month, var(--butter-deep));
+}
+
+.paper-strip {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--hair);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+@media (min-width: 1000px) {
+  .paper-strip { flex-direction: column; align-items: flex-start; width: 132px; }
+}
+.paper-label,
+.month-colour span {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.paper-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.paper-swatch {
+  width: 30px; height: 30px; padding: 0; cursor: pointer;
+  border: 1.5px solid var(--hair-strong); border-radius: 6px;
+  background-color: var(--paper);
+  transition: border-color .14s, transform .14s;
+}
+.paper-swatch:hover { transform: scale(1.08); }
+.paper-swatch[aria-pressed="true"] {
+  border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink);
+}
+/* Each swatch shows the pattern it stands for. */
+.paper-swatch[data-paper="ruled"] {
+  background-image: linear-gradient(var(--hair-strong) 1px, transparent 1px);
+  background-size: 100% 6px;
+}
+.paper-swatch[data-paper="grid"] {
+  background-image:
+    linear-gradient(var(--hair-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hair-strong) 1px, transparent 1px);
+  background-size: 6px 6px, 6px 6px;
+}
+.paper-swatch[data-paper="dots"] {
+  background-image: radial-gradient(circle, var(--hair-strong) 1.2px, transparent 1.3px);
+  background-size: 7px 7px;
+}
+
+.month-colour { display: flex; align-items: center; gap: 8px; }
+.month-colour input[type="color"] {
+  width: 32px; height: 28px; padding: 0; cursor: pointer;
+  border: 1.5px solid var(--hair-strong); border-radius: 6px; background: none;
+}
+
+.month-color-grid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+.month-color { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.month-color input[type="color"] {
+  width: 30px; height: 26px; padding: 0; cursor: pointer;
+  border: 1.5px solid var(--hair-strong); border-radius: 6px; background: none;
+}
+
+/* Four tabs rather than three, so they need to be a little tighter. */
+.nav { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 420px) {
+  .nav-label { font-size: 10.5px; }
+}

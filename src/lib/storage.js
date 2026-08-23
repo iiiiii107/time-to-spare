@@ -52,6 +52,14 @@ export const DEFAULT_STATE = {
       agenda: 'dots',
     },
 
+    // Each month gets its own colour, the way the habit tracker's do. It tints
+    // the month grid and the twelve small months in the year view.
+    monthColors: {
+      1: '#7C93B8', 2: '#8FA9C4', 3: '#7E9A70', 4: '#9CB88C',
+      5: '#C9C06A', 6: '#EFD87B', 7: '#E8C05F', 8: '#D9B54A',
+      9: '#C58E5C', 10: '#B8714C', 11: '#8C6A5A', 12: '#5B7291',
+    },
+
     theme: 'system',
 
     // The two tools you can re-colour. Same shape as the habit tracker's, so
@@ -80,6 +88,10 @@ export function withDefaults(data) {
   settings.toolStyles = {
     ...DEFAULT_STATE.settings.toolStyles,
     ...(settings.toolStyles || {}),
+  };
+  settings.monthColors = {
+    ...DEFAULT_STATE.settings.monthColors,
+    ...(settings.monthColors || {}),
   };
 
   // There must always be somewhere for an event to live.

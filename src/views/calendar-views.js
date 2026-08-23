@@ -32,11 +32,20 @@ let canvasNode = null;
 let pending = null;
 
 export function setMode(next) {
+  // Arriving at Today means today, whatever day you had wandered off to.
+  if (next === 'today' && mode !== 'today') anchor = todayISO();
   mode = next;
 }
 
 export function currentMode() {
   return mode || store.state.settings.home || 'week';
+}
+
+/* 'today' is the day grid with the anchor held on today. Everything below
+   works in terms of the shape being drawn, so this says which that is. */
+function shapeOf(view) {
+  if (view === 'today') return 'day';
+  return view;
 }
 
 function rerender() {
@@ -46,9 +55,10 @@ function rerender() {
 /* ---------- period maths ---------- */
 
 function periodStart() {
-  const view = currentMode();
-  if (view === 'month') return startOfMonth(anchor);
-  if (view === 'week') return startOfWeek(anchor, weekStartsOn());
+  const shape = shapeOf(currentMode());
+  if (shape === 'year') return `${anchor.slice(0, 4)}-01-01`;
+  if (shape === 'month') return startOfMonth(anchor);
+  if (shape === 'week') return startOfWeek(anchor, weekStartsOn());
   return anchor;
 }
 
@@ -58,8 +68,10 @@ function markKey() {
 }
 
 function step(direction) {
-  const view = currentMode();
-  if (view === 'month') anchor = addMonths(startOfMonth(anchor), direction);
+  const shape = shapeOf(currentMode());
+  const view = shape;
+  if (view === 'year') anchor = addMonths(`${anchor.slice(0, 4)}-01-01`, direction * 12);
+  else if (view === 'month') anchor = addMonths(startOfMonth(anchor), direction);
   else if (view === 'week') anchor = addDays(anchor, direction * weekStride());
   else if (view === 'agenda') anchor = addDays(anchor, direction * 14);
   else anchor = addDays(anchor, direction);
@@ -76,7 +88,8 @@ function weekStride() {
 }
 
 function periodTitle() {
-  const view = currentMode();
+  const view = shapeOf(currentMode());
+  if (view === 'year') return anchor.slice(0, 4);
   if (view === 'month') {
     return fromISO(anchor).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
@@ -141,8 +154,12 @@ function monthView(events) {
   const start = startOfWeek(first, weekStartsOn());
   const today = todayISO();
   const settings = store.state.settings;
+  const month = Number(first.slice(5, 7));
 
-  const grid = el('div', { class: 'month-grid' });
+  const grid = el('div', {
+    class: 'month-grid',
+    style: `--month:${settings.monthColors?.[month] || 'var(--ink-blue)'}`,
+  });
   for (const name of orderedDayNames(weekStartsOn())) {
     grid.append(el('div', { class: 'dow', text: name }));
   }
@@ -193,6 +210,66 @@ function monthView(events) {
   return grid;
 }
 
+
+/* ---------- year ----------
+
+   Twelve small months, each tinted with its own colour from Settings, so the
+   shape of a year is visible at a glance. Clicking a day goes to it. */
+
+function yearView(events) {
+  const yearNum = Number(anchor.slice(0, 4));
+  const today = todayISO();
+  const busy = new Set(events.map((e) => e.start.slice(0, 10)));
+  const colours = store.state.settings.monthColors || {};
+
+  const wrap = el('div', { class: 'year-grid' });
+
+  for (let month = 1; month <= 12; month += 1) {
+    const first = `${yearNum}-${String(month).padStart(2, '0')}-01`;
+    const start = startOfWeek(first, weekStartsOn());
+
+    const mini = el('div', {
+      class: 'mini-month',
+      style: `--month:${colours[month] || 'var(--ink-blue)'}`,
+    }, [
+      el('button', {
+        class: 'mini-title',
+        text: fromISO(first).toLocaleDateString(undefined, { month: 'long' }),
+        onClick: () => { anchor = first; setMode('month'); location.hash = '#/month'; },
+      }),
+    ]);
+
+    const grid = el('div', { class: 'mini-grid' });
+    for (const name of orderedDayNames(weekStartsOn())) {
+      grid.append(el('div', { class: 'mini-dow', text: name[0] }));
+    }
+
+    for (let i = 0; i < 42; i += 1) {
+      const date = addDays(start, i);
+      const outside = date.slice(0, 7) !== first.slice(0, 7);
+      if (i >= 35 && outside) continue;
+
+      grid.append(el('button', {
+        class: [
+          'mini-day',
+          outside ? 'outside' : '',
+          date === today ? 'today' : '',
+          busy.has(date) ? 'busy' : '',
+        ].filter(Boolean).join(' '),
+        text: outside ? '' : String(fromISO(date).getDate()),
+        'aria-label': date,
+        disabled: outside,
+        onClick: () => { anchor = date; setMode('today'); location.hash = '#/today'; },
+      }));
+    }
+
+    mini.append(grid);
+    wrap.append(mini);
+  }
+
+  return wrap;
+}
+
 /* ---------- agenda ---------- */
 
 function agendaView(events) {
@@ -236,6 +313,10 @@ function agendaView(events) {
 
 /** The span of dates a view needs, with a little slack either side. */
 function windowFor(view) {
+  if (view === 'year') {
+    const y = anchor.slice(0, 4);
+    return [`${y}-01-01`, `${y}-12-31`];
+  }
   if (view === 'month') {
     const first = startOfMonth(anchor);
     return [addDays(startOfWeek(first, weekStartsOn()), -7), addDays(first, 49)];
@@ -271,6 +352,49 @@ function narrowedWeek(days) {
   return days.slice(from, from + 3);
 }
 
+
+/* The paper this view is printed on, offered beside the calendar rather than
+   buried in Settings — it is a look-at-it-and-decide choice, not a
+   configure-once one. The month's own colour sits next to it. */
+function paperStrip(view) {
+  const settings = store.state.settings;
+  const current = settings.paper?.[view] || 'ruled';
+  const month = Number(startOfMonth(anchor).slice(5, 7));
+
+  const swatches = el('div', { class: 'paper-swatches' },
+    ['ruled', 'grid', 'dots', 'plain'].map((kind) =>
+      el('button', {
+        class: 'paper-swatch',
+        dataset: { paper: kind },
+        title: kind,
+        'aria-label': `${kind} paper`,
+        'aria-pressed': String(kind === current),
+        onClick: () => store.updateSettings({
+          paper: { ...store.state.settings.paper, [view]: kind },
+        }),
+      }),
+    ),
+  );
+
+  const colour = el('label', { class: 'month-colour' }, [
+    el('span', { text: 'this month' }),
+    el('input', {
+      type: 'color',
+      value: settings.monthColors?.[month] || '#7C93B8',
+      'aria-label': "This month's colour",
+      onChange: (event) => store.updateSettings({
+        monthColors: { ...store.state.settings.monthColors, [month]: event.target.value },
+      }),
+    }),
+  ]);
+
+  return el('div', { class: 'paper-strip' }, [
+    el('span', { class: 'paper-label', text: 'paper' }),
+    swatches,
+    view === 'month' ? colour : null,
+  ]);
+}
+
 /* ---------- the page ---------- */
 
 export function renderCalendar(root) {
@@ -287,27 +411,13 @@ export function renderCalendar(root) {
      looked at, so a weekly meeting is one object however long it runs. The
      window is padded a little either side: something that began before the
      period can still reach into it. */
-  const [from, to] = windowFor(view);
+  const [from, to] = windowFor(shapeOf(view));
   const events = expandAll(
     visibleEvents(store.state.events, store.state.calendars),
     from,
     to,
   );
   const card = el('div', { class: 'card paper' });
-
-  const zooms = el('div', { class: 'seg seg-wide', role: 'tablist', 'aria-label': 'Zoom' },
-    ['day', 'week', 'month', 'agenda'].map((id) =>
-      el('button', {
-        class: 'seg-item', role: 'tab', text: id,
-        'aria-selected': String(view === id),
-        onClick: () => {
-          setMode(id);
-          location.hash = `#/${id}`;
-          rerender();
-        },
-      }),
-    ),
-  );
 
   card.append(
     el('div', { class: 'cal-head' }, [
@@ -328,7 +438,6 @@ export function renderCalendar(root) {
         }),
       ]),
     ]),
-    zooms,
   );
 
   if (potOpen) {
@@ -343,17 +452,24 @@ export function renderCalendar(root) {
   const bodyWrap = el('div', { class: 'cal-body' });
   card.append(bodyWrap);
 
-  if (view === 'month' || view === 'agenda') {
-    // Month and agenda have no grid to draw into, so the body itself is the
-    // canvas — the pot has to work on all four views, not two of them.
-    const surface = el('div', { class: 'mark-surface' }, [
-      view === 'month' ? monthView(events) : agendaView(events),
-      inkLayer(markKey()),
-    ]);
-    bodyWrap.append(surface);
+  const shape = shapeOf(view);
+
+  if (shape === 'month' || shape === 'agenda' || shape === 'year') {
+    // These have no time grid to draw into, so the body itself is the canvas
+    // — the pot has to work on every view, not just the ones with columns.
+    const drawn = shape === 'month' ? monthView(events)
+      : shape === 'year' ? yearView(events)
+        : agendaView(events);
+    const surface = el('div', { class: 'mark-surface' }, [drawn, inkLayer(markKey())]);
+    // The month gets its paper and its colour offered right beside it.
+    if (shape === 'month') {
+      bodyWrap.append(el('div', { class: 'month-layout' }, [surface, paperStrip('month')]));
+    } else {
+      bodyWrap.append(surface);
+    }
     canvasNode = surface;
   } else {
-    const days = view === 'day'
+    const days = shape === 'day'
       ? [anchor]
       : narrowedWeek(weekDays(startOfWeek(anchor, weekStartsOn())));
 
