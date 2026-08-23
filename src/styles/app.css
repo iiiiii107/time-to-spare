@@ -650,6 +650,7 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
      offsets are measured against it. The keyframe is only the flourish. */
   transform: rotate(150deg); transform-origin: 50% 50%;
   animation: tool-grab .14s ease-out;
+  transition: transform .12s ease, opacity .12s ease;
   filter: drop-shadow(3px 5px 5px var(--shadow-2));
 }
 @keyframes tool-grab {
@@ -1273,3 +1274,15 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 @media (max-width: 420px) {
   .nav-label { font-size: 10.5px; }
 }
+
+/* ---------- the nib, lifted ----------
+   Space held: the tool rises off the page and pales, so it is obvious it is
+   travelling rather than writing. */
+.hand-tool.lifted-nib {
+  transform: rotate(150deg) translate(-3px, -9px);
+  opacity: .62;
+  filter: drop-shadow(5px 9px 7px var(--shadow-2));
+}
+
+/* The tools sat close enough to the controls above to be clicked by accident. */
+.pen-bar { margin: 12px 0 4px; padding-top: 6px; }

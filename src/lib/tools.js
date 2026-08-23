@@ -9,13 +9,17 @@
    completes it. There is nothing here to complete, and the tooltip says so.)
 
    Marks are drawn on the grid, in the grid's own coordinate space, and stored
-   against the period you drew them on. */
+   against the period you drew them on.
+
+   Holding the space bar lifts whichever tool you are dragging: it keeps
+   following the pointer but stops writing, so you can cross the page to reach
+   the next thing without a line trailing behind you. */
 
 export const TOOLS = {
   pen: {
     id: 'pen',
     label: 'Pen',
-    hint: 'Draw on the week. It marks the paper — nothing in your calendar moves.',
+    hint: 'Draw on the week. Hold space to lift the nib and move without drawing.',
     /** null means "use the task's own colour". */
     ink: null,
     width: 2.2,
@@ -25,7 +29,7 @@ export const TOOLS = {
   highlighter: {
     id: 'highlighter',
     label: 'Highlighter',
-    hint: 'Colour over a stretch of the week to pick it out.',
+    hint: 'Colour a stretch of the week. Hold space to lift it off the page.',
     ink: '#EFD87B',
     width: 15,
     opacity: 0.4,
@@ -35,7 +39,7 @@ export const TOOLS = {
   crayon: {
     id: 'crayon',
     label: 'Crayon',
-    hint: 'Scribble on the week — arrows, circles, whatever helps.',
+    hint: 'Scribble — arrows, circles. Hold space to lift it off the page.',
     ink: '#B8714C',
     width: 5.5,
     opacity: 0.8,
@@ -45,7 +49,7 @@ export const TOOLS = {
   eraser: {
     id: 'eraser',
     label: 'Eraser',
-    hint: 'Rub marks off. It leaves your events alone.',
+    hint: 'Rub marks off. Hold space to lift it. Your events are untouched.',
     ink: null,
     width: 0,
     opacity: 1,

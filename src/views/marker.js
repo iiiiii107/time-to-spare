@@ -9,6 +9,11 @@ import { toolSvg } from './pot.js';
    views that then drifted apart; here every surface that can be marked up
    calls this, and the surface only has to say where its canvas is.
 
+   Holding the space bar lifts the nib. The tool stays in your hand and keeps
+   following the pointer, but it stops leaving a line — so you can cross the
+   page to reach the next thing without drawing all the way there. Letting go
+   puts it back down and starts a fresh stroke.
+
    Two things worth keeping in mind, both learned the hard way:
 
    - The store is not written to until the pointer comes up. Saving mid-drag
@@ -59,10 +64,42 @@ export function startToolDrag({
   };
   place(event.clientX, event.clientY);
 
-  const points = [];
+  /* Strokes, plural: lifting the nib ends one and the next press starts
+     another, so a single drag can leave several separate marks. */
+  const strokes = [];
+  let points = [];
   let path = null;
   let wiped = false;
   let erasedSomething = false;
+  let lifted = false;
+
+  /** End the current stroke without ending the drag. */
+  function liftNib() {
+    if (lifted) return;
+    lifted = true;
+    ghost.classList.add('lifted-nib');
+    if (points.length >= 2 && path) strokes.push(path);
+    points = [];
+    path = null;
+  }
+
+  function lowerNib() {
+    lifted = false;
+    ghost.classList.remove('lifted-nib');
+  }
+
+  function onKeyDown(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    // Stop the page scrolling under the drag.
+    keyEvent.preventDefault();
+    liftNib();
+  }
+
+  function onKeyUp(keyEvent) {
+    if (keyEvent.code !== 'Space' && keyEvent.key !== ' ') return;
+    keyEvent.preventDefault();
+    lowerNib();
+  }
 
   function onMove(moveEvent) {
     place(moveEvent.clientX, moveEvent.clientY);
@@ -84,6 +121,9 @@ export function startToolDrag({
 
     if (!inside) return;
 
+    // Nib up: the tool still follows the pointer, it just isn't writing.
+    if (lifted) return;
+
     if (!path) {
       path = svg('path', {
         fill: 'none',
@@ -103,6 +143,9 @@ export function startToolDrag({
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', liftNib);
 
     ghost.classList.add('returning');
     setTimeout(() => ghost.remove(), 180);
@@ -114,19 +157,25 @@ export function startToolDrag({
       return;
     }
 
-    if (points.length < 2 || !path) return;
-    store.addMarks(markKey, [{
-      d: path.getAttribute('d'),
+    if (points.length >= 2 && path) strokes.push(path);
+    if (!strokes.length) return;
+
+    store.addMarks(markKey, strokes.map((stroke) => ({
+      d: stroke.getAttribute('d'),
       ink: tool.ink || 'var(--ink)',
       width: tool.width,
       opacity: tool.opacity,
       cap: tool.id === 'highlighter' ? 'butt' : 'round',
-    }]);
+    })));
   }
 
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  // Losing the window while space is held would otherwise leave the nib down.
+  window.addEventListener('blur', liftNib);
 }
 
 /** The layer marks are drawn into, with everything already saved redrawn. */
