@@ -1133,7 +1133,9 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 @media (max-width: 720px) {
   .grid { --rail: 40px; }
-  .grid-body { max-height: 58vh; }
+  /* No cap here either. The day is drawn at its full height and the page
+     scrolls; capping it while the grid no longer scrolls internally left the
+     rest of the day spilling out below the card. */
   .event { padding: 2px 4px 2px 6px; }
   .event-title { font-size: 10.5px; }
   .agenda-day { grid-template-columns: 68px 1fr; gap: 8px; }
@@ -1474,40 +1476,53 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
 /* ---------- the header, on a phone ----------
 
-   The full masthead is most of a small screen before anything useful starts.
-   Here it is a short bar: the wordmark on one line and the two drawn icons
-   beside it. The marquee goes entirely — a quote scrolling past is the last
-   thing worth the room when there is none.
+   No panel at all here: the wordmark and the two drawn icons sit straight on
+   the page. A paper card behind them was a second surface competing with the
+   one that actually holds the calendar, and on a small screen it was most of
+   what you could see before anything useful began.
 
-   Both states of the heading are shrunk together, and the bar keeps a floor
-   that clears the taller of them, so tapping the clock still can't jolt the
-   page. */
+   The marquee goes entirely. A quote scrolling past is the last thing worth
+   the room when there is none.
+
+   Both states of the heading are one line and the same size, and the bar
+   keeps a floor that clears the icons, so tapping the clock still can't jolt
+   the page. */
 @media (max-width: 720px) {
   .marquee { display: none; }
 
-  .masthead { padding: 8px 10px 0; }
-  .masthead-panel { border-radius: 12px; }
+  .masthead { padding: 6px 12px 0; }
+  .masthead-panel {
+    background: none; box-shadow: none; border-radius: 0; overflow: visible;
+  }
+  .stripes { display: none; }
 
   .masthead-inner {
-    padding: 9px 96px 9px 14px;
-    min-height: 46px;
-    align-items: flex-start; text-align: left;
+    padding: 0 84px 0 0;
+    min-height: 38px;
+    align-items: flex-start; justify-content: center; text-align: left;
+    gap: 0;
   }
 
-  .wordmark { font-size: 20px; letter-spacing: -.3px; }
+  .wordmark { font-size: 19px; letter-spacing: -.3px; }
   .wordmark-sub { display: none; }
 
-  /* Time and date share a line here. Stacked, the clock state was ten pixels
-     taller than the wordmark state, and the bar jumped every time you tapped
-     it. Side by side both states are one line, so it can't. */
-  .clock-face { display: flex; align-items: baseline; gap: 8px; }
-  .clock-face .clock-time { font-size: 20px; letter-spacing: -.3px; }
+  /* Time and date share a line. Stacked, the clock state was taller than the
+     wordmark state and the bar jumped every time you tapped it. */
+  .clock-face { display: flex; align-items: baseline; gap: 7px; }
+  .clock-face .clock-time { font-size: 19px; letter-spacing: -.3px; }
   .clock-face .clock-date { font-size: 11px; margin-top: 0; }
 
-  /* Side by side rather than stacked, so the bar stays one row tall. */
-  .clock-btn, .app-link { top: 6px; width: 40px; height: 40px; padding: 5px; }
-  .clock-btn { right: 50px; }
-  .app-link { right: 8px; }
+  /* Side by side, flush to the right edge, so the bar stays one row tall. */
+  .clock-btn, .app-link { top: 0; width: 38px; height: 38px; padding: 4px; border-radius: 9px; }
+  .clock-btn { right: 42px; }
+  .app-link { right: 0; }
+
+  /* And close the gaps the panel used to justify. */
+  .app { padding-left: 12px; padding-right: 12px; }
+  .nav { padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); gap: 6px; }
+  .section-tabs { padding: 0 2px; }
+  .card { padding: 13px; }
+  .card + .card { margin-top: 10px; }
 }
 
 /* ---------- sync ---------- */
