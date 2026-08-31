@@ -361,19 +361,48 @@ export function timeGrid({ days, events, markKey, onOpen, onCreate, onDragEnd })
       column.append(eventCard(placed, { pxPerMinute, onOpen, onDragEnd }));
     }
 
-    // Clicking empty grid starts an event there.
+    /* Tapping empty grid starts an event there.
+
+       On a finger this has to wait for the release. A scroll begins with a
+       press on the grid like everything else, so opening the dialog on
+       pointerdown meant every attempt to scroll the day threw up a new event —
+       which is exactly what it did on a phone. A press only counts as a tap if
+       the finger stayed put and did not linger. */
     column.addEventListener('pointerdown', (pointerEvent) => {
       if (pointerEvent.target.closest('.event')) return;
       if (pointerEvent.target.closest('.pot-tool')) return;
       // With something in your hand, a press on the grid is a stroke, not a
       // new event — that is the whole point of having picked it up.
       if (armedTool()) return;
+
+      const from = { x: pointerEvent.clientX, y: pointerEvent.clientY, at: Date.now() };
+      // Where the finger first landed is the time it means, not where it let go.
       const box = column.getBoundingClientRect();
       const minutes = snapTo(
         range.from + (pointerEvent.clientY - box.top) / pxPerMinute,
         settings.snapMinutes ?? 15,
       );
-      onCreate({ date, startMinutes: Math.max(0, minutes) });
+
+      const done = () => {
+        column.removeEventListener('pointerup', onUp);
+        column.removeEventListener('pointercancel', done);
+        window.removeEventListener('pointercancel', done);
+      };
+
+      function onUp(upEvent) {
+        done();
+        // Travelled: that was a scroll, or a drag that meant something else.
+        if (Math.hypot(upEvent.clientX - from.x, upEvent.clientY - from.y) > 8) return;
+        // Lingered: a long press is not a tap either.
+        if (Date.now() - from.at > 700) return;
+        onCreate({ date, startMinutes: Math.max(0, minutes) });
+      }
+
+      column.addEventListener('pointerup', onUp);
+      // A scroll taking over cancels the pointer, which is the clearest signal
+      // of all that this was never a tap.
+      column.addEventListener('pointercancel', done);
+      window.addEventListener('pointercancel', done);
     });
 
     columns.append(column);

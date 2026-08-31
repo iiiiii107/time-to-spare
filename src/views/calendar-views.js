@@ -27,6 +27,9 @@ let anchor = todayISO();
 let mountRoot = null;
 let potOpen = false;
 
+/** The day the month view is showing underneath itself. */
+let picked = todayISO();
+
 /** The grid element being marked on, for the pot to draw into. */
 let canvasNode = null;
 
@@ -73,7 +76,12 @@ function step(direction) {
   const shape = shapeOf(currentMode());
   const view = shape;
   if (view === 'year') anchor = addMonths(`${anchor.slice(0, 4)}-01-01`, direction * 12);
-  else if (view === 'month') anchor = addMonths(startOfMonth(anchor), direction);
+  else if (view === 'month') {
+    anchor = addMonths(startOfMonth(anchor), direction);
+    // Land on the first of the month you moved to rather than a day you can
+    // no longer see.
+    picked = anchor;
+  }
   else if (view === 'week') anchor = addDays(anchor, direction * weekStride());
   else if (view === 'agenda') anchor = addDays(anchor, direction * 14);
   else anchor = addDays(anchor, direction);
@@ -163,6 +171,7 @@ function monthView(events) {
     class: 'month-grid',
     style: `--month:${settings.monthColors?.[month] || 'var(--ink-blue)'}`,
   });
+
   for (const name of orderedDayNames(weekStartsOn())) {
     grid.append(el('div', { class: 'dow', text: name }));
   }
@@ -172,18 +181,25 @@ function monthView(events) {
     const outside = date.slice(0, 7) !== first.slice(0, 7);
     if (i >= 35 && outside) continue;
 
+    const day = eventsOn(events, date);
+
     const cell = el('div', {
       class: [
         'month-cell',
         outside ? 'outside' : '',
         date === today ? 'today' : '',
+        date === picked ? 'picked' : '',
+        day.length ? 'has-events' : '',
       ].filter(Boolean).join(' '),
       dataset: { date },
     }, [
       el('span', { class: 'month-n', text: String(fromISO(date).getDate()) }),
     ]);
 
-    const day = eventsOn(events, date);
+    /* Two ways of showing the same day, and the stylesheet picks. Seven
+       columns on a phone leave about forty pixels each, which truncates every
+       title to a single letter — so there the day is dots and the panel below
+       carries the words. */
     for (const event of day.slice(0, 4)) {
       cell.append(
         el('button', {
@@ -201,18 +217,82 @@ function monthView(events) {
       cell.append(el('span', { class: 'month-more', text: `+${day.length - 4} more` }));
     }
 
-    cell.addEventListener('click', () => {
-      anchor = date;
-      setMode('day');
-      location.hash = '#/day';
-      rerender();
-    });
+    if (day.length) {
+      cell.append(
+        el('div', { class: 'month-dots', 'aria-hidden': 'true' },
+          day.slice(0, 4).map((event) =>
+            el('i', { style: `--event:${colorOf(event, store.state.calendars)}` }),
+          ).concat(day.length > 4 ? [el('b', { text: `+${day.length - 4}` })] : []),
+        ),
+      );
+    }
+
+    // Picking a day shows it underneath rather than leaving the month.
+    cell.addEventListener('click', () => { picked = date; rerender(); });
     grid.append(cell);
   }
 
   return grid;
 }
 
+/**
+ * What is on the day you picked, in words.
+ *
+ * The grid can only ever be a shape — on a phone it is dots, and even on a
+ * wide screen a cell is too narrow for a title and a time. This is where the
+ * month actually tells you what is going on.
+ */
+function monthDayPanel(events) {
+  const settings = store.state.settings;
+  const day = eventsOn(events, picked);
+  const when = fromISO(picked);
+
+  const panel = el('div', { class: 'day-panel' }, [
+    el('div', { class: 'day-panel-head' }, [
+      el('div', {}, [
+        el('b', { text: when.toLocaleDateString(undefined, { weekday: 'long' }) }),
+        el('span', { text: ` ${formatShort(picked)}` }),
+        picked === todayISO() ? el('em', { text: ' · today' }) : null,
+      ]),
+      el('div', { class: 'row' }, [
+        el('button', {
+          class: 'btn btn-secondary btn-sm',
+          text: 'Open',
+          onClick: () => {
+            anchor = picked;
+            setMode('today');
+            location.hash = '#/today';
+          },
+        }),
+        el('button', {
+          class: 'btn btn-primary btn-sm',
+          text: '+ Event',
+          onClick: () => eventDialog(null, { date: picked }),
+        }),
+      ]),
+    ]),
+  ]);
+
+  if (!day.length) {
+    panel.append(el('div', { class: 'day-panel-empty', text: 'Nothing on.' }));
+    return panel;
+  }
+
+  panel.append(
+    el('div', { class: 'day-panel-list' }, day.map((event) =>
+      el('button', {
+        class: `day-panel-item${isDraft(event) ? ' draft' : ''}${event.isOccurrence ? ' repeats' : ''}`,
+        style: `--event:${colorOf(event, store.state.calendars)}`,
+        onClick: () => eventDialog(event),
+      }, [
+        el('span', { class: 'day-panel-when', text: formatSpan(event, settings) }),
+        el('span', { class: 'day-panel-title', text: event.title || 'Untitled' }),
+      ]),
+    )),
+  );
+
+  return panel;
+}
 
 /* ---------- year ----------
 
@@ -484,7 +564,12 @@ export function renderCalendar(root) {
     const surface = el('div', { class: 'mark-surface' }, [drawn, inkLayer(markKey())]);
     // The month gets its paper and its colour offered right beside it.
     if (shape === 'month') {
-      bodyWrap.append(el('div', { class: 'month-layout' }, [surface, paperStrip('month')]));
+      bodyWrap.append(
+        el('div', { class: 'month-layout' }, [
+          el('div', {}, [surface, monthDayPanel(events)]),
+          paperStrip('month'),
+        ]),
+      );
     } else {
       bodyWrap.append(surface);
     }
