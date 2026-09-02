@@ -3,6 +3,8 @@ import { store } from '../lib/store.js';
 import { colorOf, formatSpan, formatTime, isDraft, visibleEvents } from '../lib/events.js';
 import { eventsOn, minutesOf } from '../lib/layout.js';
 import { expandAll } from '../lib/recur.js';
+import { mergeEvents } from '../lib/gmerge.js';
+import { calendarConnected, fetchEvents } from '../lib/gcal.js';
 import {
   addDays, addMonths, formatLong, formatShort, fromISO, orderedDayNames,
   startOfMonth, startOfWeek, todayISO,
@@ -478,6 +480,42 @@ function paperStrip(view) {
   ]);
 }
 
+
+/* ---------- keeping Google's side up to date ----------
+
+   Fetching is asked for by whatever is being drawn rather than scheduled: the
+   view says which dates it needs, and this goes and gets them if that isn't
+   what it last got. Re-rendering is constant — every store change causes one —
+   so this guard is what stops a render loop becoming a request loop. */
+
+let lastAsked = '';
+let fetching = false;
+
+function wantGoogle(from, to) {
+  if (!calendarConnected()) return;
+
+  const asking = `${from}..${to}`;
+  if (asking === lastAsked || fetching) return;
+
+  lastAsked = asking;
+  fetching = true;
+
+  // A little either side, so stepping one week doesn't always mean waiting.
+  fetchEvents(addDays(from, -7), addDays(to, 7))
+    .then((events) => store.setGoogleEvents(events))
+    .catch((err) => {
+      console.warn('Could not read your Google calendar.', err);
+      // Let it be asked again rather than being stuck on a range that failed.
+      lastAsked = '';
+    })
+    .finally(() => { fetching = false; });
+}
+
+/** Forget what was fetched, so the next render asks again. */
+export function forgetGoogleWindow() {
+  lastAsked = '';
+}
+
 /* ---------- the page ---------- */
 
 export function renderCalendar(root) {
@@ -495,12 +533,18 @@ export function renderCalendar(root) {
      window is padded a little either side: something that began before the
      period can still reach into it. */
   const [from, to] = windowFor(shapeOf(view));
-  // A page with something on it again comes back before anything is drawn.
-  const events = expandAll(
+  const mine = expandAll(
     visibleEvents(store.state.events, store.state.calendars),
     from,
     to,
   );
+
+  /* Yours and Google's, drawn together. A local event that has been pushed
+     steps aside for Google's copy of itself, so nothing shows twice. */
+  const events = mergeEvents(mine, store.googleEventsNow());
+  wantGoogle(from, to);
+
+  // A page with something on it again comes back before anything is drawn.
   refreshTorn(events);
 
   const card = el('div', { class: 'card paper' });

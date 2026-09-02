@@ -14,6 +14,9 @@ class Store extends EventTarget {
     super();
     this.state = null;
     this.ready = false;
+    /** Google's events, in memory only — see setGoogleEvents. */
+    this.googleEvents = [];
+    this.googleFetchedAt = null;
   }
 
   async init() {
@@ -242,6 +245,48 @@ class Store extends EventTarget {
     });
     if (sticker.singleUse) this.deleteSticker(sticker.id);
     return event;
+  }
+
+  // ---- google calendar ---------------------------------------------------
+
+  /**
+   * The calendars on your Google account, and which of them you want drawn.
+   * Merged rather than replaced, so turning one off survives a refresh of the
+   * list — Google is the authority on what exists, you are the authority on
+   * what you want to see.
+   */
+  setGoogleCalendars(list) {
+    const chosen = new Map(
+      (this.state.googleCalendars || []).map((c) => [c.id, c]),
+    );
+    this.state.googleCalendars = list.map((calendar) => ({
+      ...calendar,
+      visible: chosen.get(calendar.id)?.visible ?? true,
+      color: chosen.get(calendar.id)?.color || calendar.color,
+    }));
+    return this.persist();
+  }
+
+  updateGoogleCalendar(id, patch) {
+    const calendar = (this.state.googleCalendars || []).find((c) => c.id === id);
+    if (calendar) Object.assign(calendar, patch);
+    return this.persist();
+  }
+
+  /**
+   * What Google last told us, kept so the week still draws while offline and
+   * doesn't blink empty on every render. Held in memory rather than saved:
+   * it is a copy of something else, it goes stale, and it would be the largest
+   * thing in the payload by far.
+   */
+  setGoogleEvents(events, fetchedAt = new Date().toISOString()) {
+    this.googleEvents = events;
+    this.googleFetchedAt = fetchedAt;
+    this.emit();
+  }
+
+  googleEventsNow() {
+    return this.googleEvents || [];
   }
 
   // ---- torn pages --------------------------------------------------------

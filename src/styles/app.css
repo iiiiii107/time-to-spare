@@ -1632,3 +1632,27 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
 
   .day-panel-item { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* ---------- events read out of Google ----------
+   Drawn a little quieter than your own: they are a record of what is booked,
+   not something this app can change. */
+.event[data-origin="google"],
+.month-strip[data-origin="google"] { border-left-style: solid; }
+.event[data-origin="google"] .event-title { font-weight: 600; }
+
+.cal-badge {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--hair-strong); border-radius: 999px;
+  padding: 1px 6px; flex: none;
+}
+.cal-row .cal-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+
+.read-when {
+  font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.read-source {
+  font-size: 12.5px; font-style: italic;
+  border-left: 3px solid var(--hair-strong); padding-left: 10px;
+}

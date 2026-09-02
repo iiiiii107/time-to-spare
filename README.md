@@ -38,13 +38,29 @@ The config goes in `.env.local` locally (copy `.env.example`) and in a
 repository secret named `VITE_FIREBASE_CONFIG` for the deployed site. Leave it
 out and the app runs without sync, saving to the browser.
 
-## Not yet
+## Google Calendar
 
-**Google Calendar itself** — reading your real events in and pushing drafts up.
-Signing in works; the Calendar API does not yet. The event model already
-carries `origin` and `pushedAt`, so it is an addition rather than a migration
-of everything you have written by then — and when it lands, an event will only
-leave when you say so.
+*Other → Settings → Connect Google Calendar.* Your real events are drawn
+alongside anything you make here, from whichever of your calendars you turn on.
+Their colours are yours to change without touching anything in Google.
+
+Reading and writing are deliberately lopsided. Everything is read; nothing is
+written unless you send it. A new event is a **draft** until you open it and
+choose *Send to Google*, and an event that came from Google is shown rather
+than offered as a form — this app can only write the events it created itself,
+so a form would promise a change it cannot make.
+
+Events that [10 Minutes to Spare](https://github.com/iiiiii107/10-minutes-to-spare)
+wrote are recognised — by the source it stamps and the id prefix it derives —
+and drawn as tasks rather than meetings.
+
+Google expands its own recurring events (`singleEvents`), so each occurrence
+arrives ready to draw and this app's own rule engine stays out of it.
+
+Same Google Cloud project and the same OAuth client as the tracker. Both apps
+are served from the same origin, so the client needed nothing added to it. The
+client id goes in `.env.local` locally and in a repository secret named
+`VITE_GOOGLE_CLIENT_ID` for the deployed site.
 
 ## Running it
 

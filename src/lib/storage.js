@@ -60,6 +60,9 @@ export const DEFAULT_STATE = {
       9: '#C58E5C', 10: '#B8714C', 11: '#8C6A5A', 12: '#5B7291',
     },
 
+    // Reading your real calendar. Off until you say so.
+    googleCalendar: false,
+
     theme: 'system',
 
     // The two tools you can re-colour. Same shape as the habit tracker's, so
@@ -81,6 +84,9 @@ export const DEFAULT_STATE = {
 
   /** The tray you drag events out of. */
   stickers: [],
+
+  /** The Google calendars on the account, and which are drawn. */
+  googleCalendars: [],
 };
 
 export function clone(value) {

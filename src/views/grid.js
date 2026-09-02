@@ -100,6 +100,7 @@ function eventCard(placed, { pxPerMinute, onOpen, onDragEnd }) {
     ].join('; '),
     dataset: {
       event: event.id,
+      origin: event.origin || 'local',
       lanes: String(lanes),
       size: heightPx < 30 ? 'tiny' : heightPx < 54 ? 'short' : 'normal',
     },

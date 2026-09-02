@@ -4,6 +4,8 @@ import { formatTime, isDraft, stamp } from '../lib/events.js';
 import { minutesOf } from '../lib/layout.js';
 import { describeRule } from '../lib/recur.js';
 import { addDays, DAY_SHORT, formatLong, fromISO } from '../lib/dates.js';
+import { calendarConnected, pushEvent } from '../lib/gcal.js';
+import { toast } from '../lib/dom.js';
 
 /* Making and editing an event.
 
@@ -126,6 +128,55 @@ function repeatSection(initial, startDate, weekStartsOn) {
   };
 }
 
+
+/**
+ * An event from Google, read rather than edited.
+ *
+ * This app can write the events it made itself and nothing else, so offering
+ * a form here would promise something it cannot do. The way to change one of
+ * these is in Google Calendar, and there is a button that goes there.
+ */
+function readOnlyDialog(event, settings) {
+  const fromTracker = event.origin === 'tracker';
+
+  modal({
+    title: event.title || 'Untitled',
+    body: el('div', {}, [
+      el('p', { class: 'read-when', text: formatSpanFor(event, settings) }),
+      el('p', { class: 'muted', style: 'margin-top:4px', text: formatLong(event.start.slice(0, 10)) }),
+      event.note
+        ? el('p', { class: 'muted', style: 'margin-top:12px', text: event.note })
+        : null,
+      el('p', { class: 'muted read-source', style: 'margin-top:14px' }, [
+        fromTracker
+          ? 'From 10 Minutes to Spare. Tick it off there — this is the copy it writes for your calendar.'
+          : 'From your Google Calendar. Change it there and it changes here.',
+      ]),
+    ]),
+    actions: [
+      { label: 'Close' },
+      {
+        label: fromTracker ? 'Open the tracker' : 'Open in Google',
+        class: 'btn btn-primary',
+        onClick: () => {
+          window.open(
+            fromTracker
+              ? 'https://iiiiii107.github.io/10-minutes-to-spare/'
+              : 'https://calendar.google.com/calendar/r/day',
+            '_blank',
+            'noopener,noreferrer',
+          );
+        },
+      },
+    ],
+  });
+}
+
+function formatSpanFor(event, settings) {
+  if (event.allDay) return 'All day';
+  return `${formatTime(event.start, settings)} – ${formatTime(event.end, settings)}`;
+}
+
 /**
  * @param {object|null} existing the event or occurrence being edited
  * @param {object} [seed] date and startMinutes for a new one
@@ -133,6 +184,13 @@ function repeatSection(initial, startDate, weekStartsOn) {
 export function eventDialog(existing, seed = {}) {
   const settings = store.state.settings;
   const weekStartsOn = settings.weekStartsOn ?? 1;
+
+  /* Something read out of Google belongs to Google. Showing it in an editable
+     form would promise a change this app cannot make — it can only write the
+     events it created itself — so it is read out instead. */
+  if (existing && (existing.origin === 'google' || existing.origin === 'tracker')) {
+    return readOnlyDialog(existing, settings);
+  }
 
   // An occurrence is a copy; the thing that gets written to is its master.
   const master = existing ? store.eventById(existing.id) : null;
@@ -283,6 +341,30 @@ export function eventDialog(existing, seed = {}) {
   }
 
   const actions = [{ label: 'Cancel' }];
+
+  /* A draft can be sent to Google, one at a time and only from here. Nothing
+     leaves on its own — that was the point of drafts. */
+  if (existing && !existing.googleId && existing.origin !== 'google'
+      && existing.origin !== 'tracker' && calendarConnected()) {
+    actions.push({
+      label: 'Send to Google',
+      onClick: () => {
+        pushEvent(existing)
+          .then(({ googleId, calendarId }) => {
+            store.updateEvent(existing.id, {
+              googleId,
+              googleCalendarId: calendarId,
+              pushedAt: new Date().toISOString(),
+            });
+            toast('Sent to your calendar');
+          })
+          .catch((err) => {
+            console.warn(err);
+            toast("Couldn't send it — try again");
+          });
+      },
+    });
+  }
 
   if (isOccurrence) {
     actions.push({

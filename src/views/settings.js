@@ -4,6 +4,10 @@ import { storage } from '../lib/storage.js';
 import { DAY_FULL, DAY_SHORT } from '../lib/dates.js';
 import { formatTime } from '../lib/events.js';
 import { currentAccount, signIn, signOutOfSync, syncConfigured, syncError } from '../lib/sync.js';
+import {
+  calendarConfigured, calendarConnected, connectCalendar, disconnectCalendar, listCalendars,
+} from '../lib/gcal.js';
+import { forgetGoogleWindow } from './calendar-views.js';
 
 /* Settings.
 
@@ -287,6 +291,123 @@ function syncCard() {
   ]);
 }
 
+
+/* ---------- google calendar ---------- */
+
+/**
+ * Reading your real calendar. Separate from signing in, because they are
+ * separate permissions: one says who you are, the other asks to see your
+ * diary. Nothing is written to Google here — a draft goes up only when you
+ * send it, from the event itself.
+ */
+function googleCalendarCard(rerender) {
+  if (!calendarConfigured()) {
+    return card('Google Calendar', 'not set up for this site yet', [
+      el('p', { class: 'muted' }, [
+        'This copy has no Google client attached, so nothing can be read in. ',
+        'See the README for the one setting it needs.',
+      ]),
+    ]);
+  }
+
+  const status = el('p', { class: 'muted', style: 'margin-top:12px' });
+
+  if (!calendarConnected()) {
+    return card('Google Calendar', 'see your real events here', [
+      el('p', { class: 'muted', style: 'margin-bottom:14px' }, [
+        'Read your Google calendars into this one. They are drawn alongside ',
+        'anything you make here, and nothing is ever written back unless you ',
+        'send it yourself.',
+      ]),
+      el('button', {
+        class: 'btn btn-secondary google-btn gcal-connect',
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          status.textContent = 'Asking Google…';
+          try {
+            await connectCalendar();
+            store.setGoogleCalendars(await listCalendars());
+            forgetGoogleWindow();
+            toast('Connected');
+            rerender();
+          } catch (err) {
+            console.warn(err);
+            status.textContent = err?.code === 'popup_closed_by_user'
+              ? 'Cancelled.'
+              : `Could not connect. ${err?.message || ''}`.trim();
+            button.disabled = false;
+          }
+        },
+      }, [googleMark(), el('span', { text: 'Connect Google Calendar' })]),
+      status,
+    ]);
+  }
+
+  const calendars = store.state.googleCalendars || [];
+
+  const list = el('div', { class: 'stack' }, calendars.map((calendar) =>
+    el('div', { class: 'cal-row', style: `--event:${calendar.color}` }, [
+      el('input', {
+        type: 'checkbox',
+        checked: calendar.visible !== false,
+        'aria-label': `Show ${calendar.name}`,
+        onChange: (event) => {
+          store.updateGoogleCalendar(calendar.id, { visible: event.target.checked });
+          // What is shown changed, so what was fetched is no longer right.
+          forgetGoogleWindow();
+        },
+      }),
+      el('span', { class: 'cal-name', text: calendar.name }),
+      calendar.primary ? el('span', { class: 'cal-badge', text: 'main' }) : null,
+      el('input', {
+        type: 'color',
+        value: calendar.color,
+        'aria-label': `${calendar.name} colour`,
+        onChange: (event) => store.updateGoogleCalendar(calendar.id, { color: event.target.value }),
+      }),
+    ]),
+  ));
+
+  return card('Google Calendar', 'on — reading your real events', [
+    el('p', { class: 'muted', style: 'margin-bottom:12px' }, [
+      'Which of your calendars are drawn. Their colours are yours to change ',
+      'here without touching anything in Google.',
+    ]),
+    calendars.length ? list : el('p', { class: 'muted', text: 'No calendars found.' }),
+    el('div', { class: 'row', style: 'margin-top:14px' }, [
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Refresh list',
+        onClick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            store.setGoogleCalendars(await listCalendars());
+            forgetGoogleWindow();
+            toast('Up to date');
+          } catch (err) {
+            toast('Could not reach Google');
+            console.warn(err);
+          }
+          button.disabled = false;
+          rerender();
+        },
+      }),
+      el('button', {
+        class: 'btn btn-secondary btn-sm',
+        text: 'Disconnect',
+        onClick: async () => {
+          await disconnectCalendar();
+          forgetGoogleWindow();
+          toast('Disconnected — your own events are untouched');
+          rerender();
+        },
+      }),
+    ]),
+  ]);
+}
+
 /* ---------- the page ---------- */
 
 export function renderSettings(root) {
@@ -484,7 +605,7 @@ export function renderSettings(root) {
     ]),
   ]);
 
-  root.append(syncCard(), view, density, making, type, paper, months, calendars, appearance, data);
+  root.append(syncCard(), googleCalendarCard(rerender), view, density, making, type, paper, months, calendars, appearance, data);
 }
 
 /** Stamps the theme choice on <html>; 'system' clears it so the OS decides. */
