@@ -164,9 +164,14 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
    A button in the corner of the panel. Tapping it swaps the wordmark for the
    date and time; tapping again brings the wordmark back. */
 
-/* Two drawn things pinned in the corner of the page: the clock, which swaps
-   the wordmark for the time, and the bucket under it, which goes through to
-   the tracker where the small things are kept. */
+/* Three drawn things pinned in the corner of the page: the clock, which swaps
+   the wordmark for the time, then the bucket through to the tracker where the
+   small things are kept, then the books through to Study to Spare Time. All
+   three apps carry all three, so any one of them reaches the others.
+
+   A row across the corner rather than a column down it — three stacked ran
+   past the bottom of the panel, and growing the header to hold them is the
+   header growing for no reason. */
 .clock-btn, .app-link {
   position: absolute; right: 12px; z-index: 3;
   width: 44px; height: 44px; padding: 7px;
@@ -175,8 +180,9 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   display: block;
   transition: background .18s, transform .18s;
 }
-.clock-btn { top: 12px; }
-.app-link { top: 58px; }
+.clock-btn { top: 12px; right: 104px; }
+.app-link.slot-2 { top: 12px; right: 58px; }
+.app-link.slot-3 { top: 12px; right: 12px; }
 
 .clock-btn:hover, .app-link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .clock-btn:active, .app-link:active { transform: scale(.92); }
@@ -1513,9 +1519,10 @@ body[data-view="agenda"] { --accent: var(--ink-blue); }
   .clock-face .clock-date { font-size: 11px; margin-top: 0; }
 
   /* Side by side, flush to the right edge, so the bar stays one row tall. */
-  .clock-btn, .app-link { top: 0; width: 38px; height: 38px; padding: 4px; border-radius: 9px; }
-  .clock-btn { right: 42px; }
-  .app-link { right: 0; }
+  .clock-btn, .app-link { width: 38px; height: 38px; padding: 4px; border-radius: 9px; }
+  .clock-btn { top: 0; right: 84px; }
+  .app-link.slot-2 { top: 0; right: 42px; }
+  .app-link.slot-3 { top: 0; right: 0; }
 
   /* And close the gaps the panel used to justify. */
   .app { padding-left: 12px; padding-right: 12px; }

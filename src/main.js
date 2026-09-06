@@ -120,6 +120,33 @@ function bucketIcon() {
   ]);
 }
 
+/* A stack of books — through to Study to Spare Time, where the reading and the
+   revision live. Same flat drawn hand as the clock and the bucket. */
+function booksIcon() {
+  return svg('svg', { viewBox: '0 0 64 64', fill: 'none', 'aria-hidden': 'true' }, [
+    svg('rect', {
+      x: '9', y: '40', width: '46', height: '13', rx: '4',
+      fill: 'var(--butter)', stroke: 'var(--ink)', 'stroke-width': '2.6',
+    }),
+    svg('path', { d: 'M18 40v13', stroke: 'var(--ink)', 'stroke-width': '2' }),
+    svg('rect', {
+      x: '12', y: '27', width: '40', height: '13', rx: '4',
+      fill: 'var(--sage)', stroke: 'var(--ink)', 'stroke-width': '2.6',
+    }),
+    svg('path', { d: 'M45 27v13', stroke: 'var(--ink)', 'stroke-width': '2' }),
+    svg('rect', {
+      x: '8', y: '14', width: '44', height: '13', rx: '4',
+      fill: 'var(--rust)', stroke: 'var(--ink)', 'stroke-width': '2.6',
+    }),
+    svg('path', { d: 'M17 14v13', stroke: 'var(--ink)', 'stroke-width': '2' }),
+    // a bookmark left in the top one
+    svg('path', {
+      d: 'M36 14v11l4-3 4 3V14Z',
+      fill: 'var(--paper)', stroke: 'var(--ink)', 'stroke-width': '2.2', 'stroke-linejoin': 'round',
+    }),
+  ]);
+}
+
 function tickClock() {
   const now = new Date();
   const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -151,7 +178,7 @@ function buildMasthead(onToggleTime) {
      than a scripted window.open, so it behaves like every other link and can
      be middle-clicked or long-pressed. */
   const bucketLink = el('a', {
-    class: 'app-link',
+    class: 'app-link slot-2',
     href: 'https://iiiiii107.github.io/10-minutes-to-spare/',
     target: '_blank',
     rel: 'noopener noreferrer',
@@ -159,11 +186,23 @@ function buildMasthead(onToggleTime) {
     title: '10 minutes to spare — the little things',
   }, [bucketIcon()]);
 
+  /* And through to the study app. All three carry all three, so any one of
+     them reaches the others. */
+  const studyLink = el('a', {
+    class: 'app-link slot-3',
+    href: 'https://iiiiii107.github.io/study-to-spare-time/',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    'aria-label': 'Open Study to Spare Time in a new tab',
+    title: 'Study to spare time — what to study, and when',
+  }, [booksIcon()]);
+
   return el('header', { class: 'masthead' }, [
     el('div', { class: 'masthead-panel' }, [
       el('div', { class: 'stripes', 'aria-hidden': 'true' }),
       clockButton,
       bucketLink,
+      studyLink,
       el('div', { class: 'masthead-inner' }, [heading]),
     ]),
   ]);
